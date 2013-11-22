@@ -204,4 +204,32 @@ record ADAMGenotype {
 
 }
 
+// Holds the reference sequence, base-by-base.
+record ADAMReference {
+  union { null, string } referenceName = null;
+  union { null, long } position = null;
+  union { null, Base } base = null;
+}
+
+// Represents contiguous-region annotation as a decomposed set of point
+// annotations, each containing its (original) offset within the larger
+// region.  Should make it easier to join with the ADAMReference, and other
+// data structures, above.
+//
+record ADAMAnnotation {
+  union { null, string } referenceName = null;
+  union { null, long } position = null;
+  union { null, boolean } orientation = null;
+
+  // for any point within an annotation, the length of the annotation should
+  // be (offset + reverseOffset + 1)
+  union { null, int } offset = null;
+  union { null, int } reverseOffset = null;
+
+  // the annotationType should probably be drawn from an ontology, i.e. something
+  // like SO if it wasn't so terrible.
+  union { null, string } annotationType = null;
+  union { null, string } annotationID = null;
+}
+
 }
