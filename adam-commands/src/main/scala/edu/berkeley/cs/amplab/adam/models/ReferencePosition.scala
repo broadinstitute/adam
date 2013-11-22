@@ -91,6 +91,8 @@ case class ReferencePosition(refId: Int, pos: Long) extends Ordered[ReferencePos
       pos.compare(that.pos)
     }
   }
+
+  override def toString : String = "%d:%d".format(refId, pos)
 }
 
 class ReferencePositionWithOrientationSerializer extends Serializer[ReferencePositionWithOrientation] {
