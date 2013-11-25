@@ -47,6 +47,9 @@ import scala.Some
 import edu.berkeley.cs.amplab.adam.models.ADAMRod
 import net.sf.samtools.SAMFileHeader
 import java.util.regex.Pattern
+import edu.berkeley.cs.amplab.adam.models.ADAMVariantContext._
+import edu.berkeley.cs.amplab.adam.models.ADAMVariantContext
+import edu.berkeley.cs.amplab.adam.projections.ADAMVariantAnnotations
 
 object AdamContext {
   // Add ADAM Spark context methods
