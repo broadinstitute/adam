@@ -30,7 +30,8 @@ object AdamMain {
     CompareAdam,
     ComputeVariants,
     Adam2Vcf,
-    Vcf2Adam)
+    Vcf2Adam,
+    FindReads)
 
   private def printCommands() {
     println("\n")

@@ -16,6 +16,9 @@
 package edu.berkeley.cs.amplab.adam.rdd.compare
 
 import edu.berkeley.cs.amplab.adam.util.SparkFunSuite
+import edu.berkeley.cs.amplab.adam.predicates.{MatchGenerator, GBGenerators}
+import edu.berkeley.cs.amplab.adam.rdd.AdamContext._
+import edu.berkeley.cs.amplab.adam.avro.ADAMRecord
 
 class CompareAdamSuite extends SparkFunSuite {
 
@@ -23,13 +26,14 @@ class CompareAdamSuite extends SparkFunSuite {
     val reads12 = ClassLoader.getSystemClassLoader.getResource("reads12.sam").getFile
     val reads21 = ClassLoader.getSystemClassLoader.getResource("reads21.sam").getFile
 
-    val (comp1, comp2) =
-      CompareAdam.compareADAM(sc, reads12, reads21, CompareAdam.readLocationsMatchPredicate)
+    val dict1 = sc.adamDictionaryLoad[ADAMRecord](reads12)
+    val dict2 = sc.adamDictionaryLoad[ADAMRecord](reads21)
+    val map12 : collection.Map[Int,Int] = dict1.mapTo(dict2)
 
-    assert(comp1.total === 200)
-    assert(comp2.total === 200)
-    assert(comp1.unique === 0)
-    assert(comp2.unique === 0)
-    assert(comp1.matching === 200)
+    val generators : Seq[MatchGenerator] = Seq(new GBGenerators.SameMappedPosition(map12.toMap))
+    val values = CompareAdam.runGenerators(sc, reads12, reads21, generators)
+
+    val sameValue = values(generators(0))
+    assert( sameValue === 200 )
   }
 }
