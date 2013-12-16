@@ -52,6 +52,7 @@ object ADAMMain extends Logging {
         VizReads,
         PrintTags,
         ListDict,
+        ExportFastq,
         SummarizeGenotypes,
         AlleleCount,
         BuildInformation)))
