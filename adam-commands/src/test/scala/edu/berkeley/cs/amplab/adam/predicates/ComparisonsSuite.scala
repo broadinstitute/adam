@@ -20,11 +20,13 @@ import edu.berkeley.cs.amplab.adam.util.{Histogram, Points, SparkFunSuite}
 import edu.berkeley.cs.amplab.adam.avro.ADAMRecord
 import edu.berkeley.cs.amplab.adam.models.SingleReadBucket
 
-class GeneratorsSuite extends SparkFunSuite {
+class ComparisonsSuite extends SparkFunSuite {
   var bucket: SingleReadBucket = null
   var bucketMapq: SingleReadBucket = null
+  var bucketMapqUnset: SingleReadBucket = null
   var bucketDuplicate: SingleReadBucket = null
   var bucketQual: SingleReadBucket = null
+  var bucketQualUnset: SingleReadBucket = null
   var bucketMovedChromosome: SingleReadBucket = null
   var bucketMovedStart: SingleReadBucket = null
 
@@ -54,12 +56,34 @@ class GeneratorsSuite extends SparkFunSuite {
       .setMapq(11)
       .build())
 
+    bucketMapqUnset = srb(ADAMRecord.newBuilder()
+      .setReadName("test")
+      .setDuplicateRead(false)
+      .setQual("abcdef")
+      .setReferenceId(1)
+      .setStart(100)
+      .setPrimaryAlignment(true)
+      .setRecordGroupId("groupid")
+      .setReadMapped(true)
+      .build())
+
     bucketDuplicate = srb(ADAMRecord.newBuilder(record)
       .setDuplicateRead(true)
       .build())
 
     bucketQual = srb(ADAMRecord.newBuilder(record)
       .setQual("fedcba")
+      .build())
+
+    bucketQualUnset = srb(ADAMRecord.newBuilder()
+      .setReadName("test")
+      .setDuplicateRead(false)
+      .setMapq(10)
+      .setReferenceId(1)
+      .setStart(100)
+      .setPrimaryAlignment(true)
+      .setRecordGroupId("groupid")
+      .setReadMapped(true)
       .build())
 
     bucketMovedChromosome = srb(ADAMRecord.newBuilder(record)
@@ -73,23 +97,27 @@ class GeneratorsSuite extends SparkFunSuite {
   }
 
   sparkTest("Dupe mismatches found") {
-    assert(GBGenerators.DupeMismatch.matchedByName(bucket, bucket).asInstanceOf[Int] === 0)
-    assert(GBGenerators.DupeMismatch.matchedByName(bucket, bucketDuplicate).asInstanceOf[Int] === 1)
+    assert(GBComparisons.DupeMismatch.matchedByName(bucket, bucket).asInstanceOf[Int] === 0)
+    assert(GBComparisons.DupeMismatch.matchedByName(bucket, bucketDuplicate).asInstanceOf[Int] === 1)
   }
 
   sparkTest("Mismatched mapped positions histogram generated") {
-    assert(GBGenerators.MappedPosition.matchedByName(bucket, bucket).asInstanceOf[Histogram[Long]].countToValue(0) === 1)
-    assert(GBGenerators.MappedPosition.matchedByName(bucket, bucketMovedChromosome).asInstanceOf[Histogram[Long]].countToValue.get(0).isEmpty)
-    assert(GBGenerators.MappedPosition.matchedByName(bucket, bucketMovedChromosome).asInstanceOf[Histogram[Long]].countToValue(Long.MaxValue) === 1)
-    assert(GBGenerators.MappedPosition.matchedByName(bucket, bucketMovedStart).asInstanceOf[Histogram[Long]].countToValue.get(0).isEmpty)
-    assert(GBGenerators.MappedPosition.matchedByName(bucket, bucketMovedStart).asInstanceOf[Histogram[Long]].countToValue(100) === 1)
+    assert(GBComparisons.MappedPosition.matchedByName(bucket, bucket).asInstanceOf[Histogram[Long]].valueToCount(0) === 1)
+    assert(GBComparisons.MappedPosition.matchedByName(bucket, bucketMovedChromosome).asInstanceOf[Histogram[Long]].valueToCount.get(0).isEmpty)
+    assert(GBComparisons.MappedPosition.matchedByName(bucket, bucketMovedChromosome).asInstanceOf[Histogram[Long]].valueToCount(-1) === 1)
+    assert(GBComparisons.MappedPosition.matchedByName(bucket, bucketMovedStart).asInstanceOf[Histogram[Long]].valueToCount.get(0).isEmpty)
+    assert(GBComparisons.MappedPosition.matchedByName(bucket, bucketMovedStart).asInstanceOf[Histogram[Long]].valueToCount(100) === 1)
   }
 
   sparkTest("Test map quality scores") {
-    assert(GBGenerators.MapQualityScores.matchedByName(bucket, bucket).asInstanceOf[Points[Int]].points.contains((10, 10)))
+    assert(GBComparisons.MapQualityScores.matchedByName(bucket, bucket).asInstanceOf[Points[Int]].points.contains((10, 10)))
     assert({
-      val points = GBGenerators.MapQualityScores.matchedByName(bucket, bucketMapq).asInstanceOf[Points[Int]].points
+      val points = GBComparisons.MapQualityScores.matchedByName(bucket, bucketMapq).asInstanceOf[Points[Int]].points
       points.contains((10, 11)) || points.contains((11, 10))
     })
+  }
+
+  sparkTest("Test base quality scores") {
+    assert(GBComparisons.BaseQualityScores.matchedByName(bucket, bucket).asInstanceOf[Points[Int]].points.forall{ case (a, b) => a._1 == a._2 })
   }
 }

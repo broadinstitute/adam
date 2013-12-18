@@ -1,4 +1,4 @@
-/**
+/*
  * Copyright 2013 Genome Bridge LLC
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
@@ -14,10 +14,19 @@
  * limitations under the License.
  */
 
-package edu.berkeley.cs.amplab.adam.util
+package edu.berkeley.cs.amplab.adam.rich
 
-class HistogramSuite extends SparkFunSuite {
-  sparkTest("Histogram addition works") {
-    assert((Histogram[Long](1)++Histogram[Long](1)).valueToCount(1) === 2)
+import edu.berkeley.cs.amplab.adam.avro.ADAMRecord
+import org.apache.spark.rdd.RDD
+import org.apache.spark.SparkContext
+
+class RichADAMRDD(rdd: RDD[ADAMRecord])(implicit sc: SparkContext) {
+  def remapReferenceId(map: Map[Int, Int]): RDD[ADAMRecord] = {
+    val bc = sc.broadcast(map)
+    rdd.map(r => ADAMRecord.newBuilder(r).setReferenceId(bc.value(r.getReferenceId)).build())
   }
+}
+
+object RichADAMRDD {
+  implicit def adamRDDToRichADAMRDD(rdd: RDD[ADAMRecord])(implicit sc: SparkContext) : RichADAMRDD = new RichADAMRDD(rdd)(sc)
 }

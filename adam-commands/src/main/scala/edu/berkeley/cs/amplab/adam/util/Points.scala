@@ -16,8 +16,19 @@
 
 package edu.berkeley.cs.amplab.adam.util
 
-case class Points[T](points: (T, T)*) {
+case class Points[T](points: Map[(T, T), Int]) {
   def ++(other: Points[T]): Points[T] = {
-    Points[T](points ++ other.points: _*)
+    val map = collection.mutable.HashMap[(T, T), Int]()
+    points foreach map.+=
+    other.points foreach(kv => {
+      val newValue = map.getOrElse(kv._1, 0) + kv._2
+      map(kv._1) = newValue
+    })
+    new Points[T](map.toMap)
   }
+}
+
+object Points {
+  def apply[T](): Points[T] = new Points[T](Map())
+  def apply[T](points: (T, T)*): Points[T] = new Points[T](Map(points.map((_, 1)): _*))
 }

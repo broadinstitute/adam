@@ -16,11 +16,11 @@
 
 package edu.berkeley.cs.amplab.adam.util
 
-case class Histogram[T](countToValue: Map[T, Int]) {
+case class Histogram[T](valueToCount: Map[T, Int]) {
   def ++(other: Histogram[T]): Histogram[T] = {
     val map = collection.mutable.HashMap[T, Int]()
-    countToValue foreach map.+=
-    other.countToValue foreach(kv => {
+    valueToCount foreach map.+=
+    other.valueToCount foreach(kv => {
       val newValue = map.getOrElse(kv._1, 0) + kv._2
       map(kv._1) = newValue
     })
