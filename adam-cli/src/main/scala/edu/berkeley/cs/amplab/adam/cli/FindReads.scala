@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package edu.berkeley.cs.amplab.adam.commands
+package edu.berkeley.cs.amplab.adam.cli
 
-import edu.berkeley.cs.amplab.adam.util.{ParquetLogger, Args4jBase, Args4j}
+import edu.berkeley.cs.amplab.adam.util.ParquetLogger
 import org.kohsuke.args4j.{Option => Args4jOption, Argument}
 import org.apache.spark.SparkContext
 import org.apache.spark.SparkContext._
