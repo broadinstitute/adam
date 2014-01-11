@@ -46,6 +46,7 @@ class ADAMRDDFunctionsSuite extends SparkFunSuite {
       .setReadMapped(true)
       .setCigar(cigar)
       .setStart(start)
+      .setReadMapped(true)
       .build()
   }
 

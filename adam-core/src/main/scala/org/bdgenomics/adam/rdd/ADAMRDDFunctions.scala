@@ -167,6 +167,9 @@ class ADAMRecordRDDFunctions(rdd: RDD[ADAMRecord]) extends ADAMSequenceDictionar
    * The end of the record against the reference sequence is calculated from the cigar string
    * using the ADAMContext.referenceLengthFromCigar method.
    *
+   * This method also avoids using the ReferenceMapping trait, which can cause a lot of extra
+   * objects to be created.
+   *
    * @param query The query region, only records which overlap this region are returned.
    * @return The subset of ADAMRecords (corresponding to either primary or secondary alignments) that
    *         overlap the query region.

@@ -54,7 +54,7 @@ object TrackedLayout {
  * @param mapping The (implicit) reference mapping which converts values to ReferenceRegions
  * @tparam T the type of value which is to be tracked.
  */
-class OrderedTrackedLayout[T](reads: Traversable[T])(implicit val mapping: ReferenceMapping[T]) extends TrackedLayout[T] {
+class OrderedTrackedLayout[T](val reads: Traversable[T])(implicit val mapping: ReferenceMapping[T]) extends TrackedLayout[T] {
 
   private var trackBuilder = new mutable.ListBuffer[Track]()
   reads.toSeq.foreach(findAndAddToTrack)
