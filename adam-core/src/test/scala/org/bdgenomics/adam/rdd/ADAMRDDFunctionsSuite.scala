@@ -39,6 +39,41 @@ import scala.util.Random
 
 class ADAMRDDFunctionsSuite extends SparkFunSuite {
 
+  def buildADAMRecord(refName: String, start: Long, cigar: String, readMapped: Boolean = true): ADAMRecord = {
+    val contig = ADAMContig.newBuilder().setContigName(refName).build()
+    ADAMRecord.newBuilder()
+      .setContig(contig)
+      .setReadMapped(true)
+      .setCigar(cigar)
+      .setStart(start)
+      .build()
+  }
+
+  sparkTest("filterByOverlappingRegion correctly removes non-overlapping reads") {
+    val r0 = buildADAMRecord("1", 10, "10M")
+    val r1 = buildADAMRecord("1", 20, "10M")
+    val r2 = buildADAMRecord("2", 20, "10M")
+
+    val reads: RDD[ADAMRecord] = sc.parallelize(List(r0, r1, r2))
+
+    val target1 = ReferenceRegion("1", 10, 25)
+    val target2 = ReferenceRegion("1", 10, 15)
+
+    assert(reads.count() === 3)
+
+    val filter1 = reads.filterByOverlappingRegion(target1)
+    val filter2 = reads.filterByOverlappingRegion(target2)
+
+    assert(filter1.count() === 2)
+    assert(filter2.count() === 1)
+
+    assert(filter1.collect().contains(r1))
+    assert(!filter1.collect().contains(r2))
+
+    assert(!filter2.collect().contains(r1))
+    assert(!filter2.collect().contains(r2))
+  }
+
   sparkTest("can convert pileups to rods, bases at different pos, same reference") {
     val contig = ADAMContig.newBuilder
       .setContigName("chr0")
