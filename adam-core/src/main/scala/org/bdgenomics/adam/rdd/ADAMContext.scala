@@ -352,4 +352,9 @@ class ADAMContext(val sc: SparkContext) extends Serializable with Logging {
     sc.union(paths.map(loadADAMs).map(v => v._2))
   }
 
+  def prepareSAMFileHeader(filePath : String) : SAMFileHeader = {
+    val header = new SAMFileHeader()
+
+    header
+  }
 }

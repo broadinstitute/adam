@@ -17,14 +17,92 @@
  */
 package org.bdgenomics.adam.converters
 
-import net.sf.samtools.{ CigarElement, SAMReadGroupRecord, SAMRecord }
+import net.sf.samtools.{SAMSequenceRecord, SAMFileHeader, SAMReadGroupRecord, SAMRecord}
+
+import org.bdgenomics.formats.avro.ADAMRecord
+import scala.collection.JavaConverters._
 import org.bdgenomics.adam.models.{ SequenceRecord, Attribute, RecordGroupDictionary, SequenceDictionary }
 import org.bdgenomics.adam.util.AttributeUtils
 import org.bdgenomics.formats.avro.AlignmentRecord
 import scala.collection.JavaConverters._
 
 class SAMRecordConverter extends Serializable {
-  def convert(samRecord: SAMRecord, dict: SequenceDictionary, readGroups: RecordGroupDictionary): AlignmentRecord = {
+
+  def unconvert(adam : ADAMRecord, fileHeader : SAMFileHeader) : SAMRecord = {
+
+    import edu.berkeley.cs.amplab.adam.rich.RichADAMRecord._
+
+    val record = new SAMRecord(fileHeader)
+
+    /**
+     * Set up the SAMRecord
+     */
+    record.setReadName(adam.getReadName.toString)
+    record.setReadString(adam.getSequence.toString)
+    record.setBaseQualityString(adam.getQual.toString)
+
+    if(adam.getReferenceId == null) {
+      record.setReferenceIndex(SAMRecord.NO_ALIGNMENT_REFERENCE_INDEX)
+      record.setReferenceName(SAMRecord.NO_ALIGNMENT_REFERENCE_NAME)
+      record.setAlignmentStart(SAMRecord.NO_ALIGNMENT_START)
+      record.setMappingQuality(SAMRecord.NO_MAPPING_QUALITY)
+      record.setCigarString(SAMRecord.NO_ALIGNMENT_CIGAR)
+
+    } else {
+      val samSequenceRecord = fileHeader.getSequence(adam.getReferenceName.toString)
+
+      record.setReferenceIndex(samSequenceRecord.getSequenceIndex)
+      record.setReferenceName(adam.getReferenceName.toString)
+      record.setAlignmentStart(adam.getStart.toInt + 1)
+      record.setReadNegativeStrandFlag(adam.getReadNegativeStrand)
+      record.setCigarString(adam.getCigar.toString)
+
+      if(adam.getMapq != null) {
+        record.setMappingQuality(adam.getMapq)
+      } else {
+        record.setMappingQuality(SAMRecord.UNKNOWN_MAPPING_QUALITY)
+      }
+    }
+
+    if(adam.getReadPaired) {
+      val samSequenceRecord = fileHeader.getSequence(adam.getMateReference.toString)
+
+      record.setMateReferenceIndex(samSequenceRecord.getSequenceIndex)
+      record.setMateReferenceName(adam.getMateReference.toString)
+      record.setMateAlignmentStart(adam.getMateAlignmentStart.toInt + 1)
+      record.setMateNegativeStrandFlag(adam.getMateNegativeStrand)
+    }
+
+    record.setDuplicateReadFlag(adam.getDuplicateRead)
+    record.setFirstOfPairFlag(adam.getFirstOfPair)
+    record.setSecondOfPairFlag(adam.getSecondOfPair)
+    record.setMateUnmappedFlag(!adam.getMateMapped)
+    record.setNotPrimaryAlignmentFlag(!adam.getPrimaryAlignment)
+    record.setProperPairFlag(adam.getProperPair)
+    record.setReadFailsVendorQualityCheckFlag(adam.getFailedVendorQualityChecks)
+    record.setReadPairedFlag(adam.getReadPaired)
+
+    /**
+     * Set up the attributes
+     */
+
+    // Set MD tag
+    if(adam.getMismatchingPositions != null) {
+      record.setAttribute("MD", adam.getMismatchingPositions.toString)
+    }
+    // Set RG tag
+    if(adam.getRecordGroupId != null) {
+      record.setAttribute("RG", adam.getRecordGroupId.toString)
+    }
+    // Set the rest of the tags.
+    for( attr <- adam.tags ) {
+      record.setAttribute(attr.name, attr.value)
+    }
+
+    record
+  }
+
+  def convert(samRecord: SAMRecord, dict: SequenceDictionary, readGroups: RecordGroupDictionary): ADAMRecord = {
 
     val cigar: String = samRecord.getCigarString
     val startTrim = if (cigar == "*") {
