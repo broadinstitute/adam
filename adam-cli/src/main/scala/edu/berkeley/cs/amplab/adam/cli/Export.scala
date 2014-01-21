@@ -40,6 +40,9 @@ object Export extends AdamCommandCompanion {
   }
 }
 
+/**
+ * TODO add an option here to choose different output formats.
+ */
 class ExportArgs extends Args4jBase with SparkArgs with ParquetArgs {
   @Argument(required = true, metaVar = "INPUT", usage = "The ADAM file to export", index = 0)
   val inputPath: String = null
@@ -51,6 +54,12 @@ class ExportArgs extends Args4jBase with SparkArgs with ParquetArgs {
   var parts = 20
 }
 
+/**
+ * Reads in the BAMs (*in sorted order*, by filename) and concatenates them.
+ *
+ * How many other kinds of export are going to need this step?  I can think of at least two:
+ * FAST{A,Q}, and VCF. Others?
+ */
 object BAMCombiner {
 
   def combineBAMs(header : SAMFileHeader, outputPath : String, filenames : Iterable[String]) {
@@ -75,6 +84,11 @@ object BAMCombiner {
   }
 }
 
+/**
+ * TODO need to combine this with ExportFastq command, into a single "uber" export.
+ *
+ * @param args
+ */
 class Export(protected val args: ExportArgs) extends AdamSparkCommand[ExportArgs] {
   val companion: AdamCommandCompanion = Export
 
@@ -94,12 +108,23 @@ class Export(protected val args: ExportArgs) extends AdamSparkCommand[ExportArgs
 
     // Next, we create a serializable version of the header that can be passed
     // to each node as it processes each partition.
+
+    // TODO we're going to run into problems, because I don't think that SAMFileHeader
+    // TODO is serializable (*sigh*).  So, we're going to need to wrap this data into an
+    // TODO equivalent, serializable piece -- and pass *that* into each partition writer, and
+    // TODO reconstruct the header inside each writer.  BLARGH!!
     val header = sc.prepareSAMFileHeader(args.inputPath)
     // TODO fill in the header here
 
     val reads : RDD[ADAMRecord] = sc.adamLoad(args.inputPath)
 
+    // Sort the reads and key them by position -- this is critical, because we're going
+    // to generate a separate BAM for each partition.  Open question: is it fast to
+    // key-then-sort-within-each-partition, or sort-then-key?  Does it matter?
+    // Follow-up question: If I sort then partition, does it maintain the sort order within
+    // each partition?  Hmmmm...
     // TODO this won't handle unmapped reads.
+    // TODO check that GenomicRegionPartitioner is doing the right thing relative to reads which span partition blocks
     val sorted = reads.adamSortReadsByReferencePosition().keyBy {
       rec =>
         ReferencePosition(rec.getReferenceId, rec.getStart)
@@ -117,9 +142,12 @@ class Export(protected val args: ExportArgs) extends AdamSparkCommand[ExportArgs
 
         var filename : String = null
         var writer : BAMFileWriter = null
+
+        // TODO Kinda wish SAMRecordConverter was an object instead of a class.
         val sam = new SAMRecordConverter()
 
         for( (pos, rec) <- itr ) {
+          // TODO see note above -- probably want to check that we're still in coordinate-sorted order here.
 
           if(writer == null) {
 
