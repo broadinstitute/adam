@@ -305,6 +305,9 @@ record GBGenotype {
 
        union { null, string } referenceName = null;
        union { null, int } referenceId = null;
+       union { null, long }   referenceLength = null;
+       union { null, string } referenceUrl = null;
+
        union { null, long } start = null;
        
        union { null, string } sampleName = null;
@@ -326,9 +329,12 @@ record GBSampleMetadata {
 
        union { null, string } sampleName = null;
        union { null, int } sampleId = null;
+
        union { null, string } race = null;
        union { null, string } population = null;
-       union { null, map<string> } attributes = null;
+
+       union { null, string } key = null;
+       union { null, string } value = null;
 
 }
 
