@@ -72,7 +72,8 @@ object CompareAdam extends AdamCommandCompanion with Serializable {
                            recurse1: String,
                            input2Path: String,
                            recurse2: String,
-                           generator: BucketComparisons[Any]): ComparisonTraversalEngine = {
+                           generator: BucketComparisons[Any],
+                           partitions: Int = 0): ComparisonTraversalEngine = {
 
     val schemas = Seq[FieldValue](
       recordGroupId,
@@ -82,7 +83,7 @@ object CompareAdam extends AdamCommandCompanion with Serializable {
       readPaired,
       firstOfPair) ++ generator.schemas
 
-    new ComparisonTraversalEngine(schemas, sc.findFiles(new Path(input1Path), recurse1), sc.findFiles(new Path(input2Path), recurse2))(sc)
+    new ComparisonTraversalEngine(schemas, sc.findFiles(new Path(input1Path), recurse1), sc.findFiles(new Path(input2Path), recurse2), partitions)(sc)
   }
 
   def parseGenerators(nameList : String) : Seq[BucketComparisons[Any]] = {
@@ -124,6 +125,9 @@ class CompareAdamArgs extends Args4jBase with SparkArgs with ParquetArgs with Se
   @Args4jOption(required = false, name = "-output", metaVar = "DIRECTORY",
     usage = "Directory to generate the comparison output files (default: output to STDOUT)")
   val directory: String = null
+
+  @Args4jOption(required = false, name = "-target_partitions", usage = "Target number of partitions to run")
+  val partitions: Int = -1
 }
 
 class CompareAdam(protected val args: CompareAdamArgs) extends AdamSparkCommand[CompareAdamArgs] with Serializable {
@@ -199,7 +203,8 @@ class CompareAdam(protected val args: CompareAdamArgs) extends AdamSparkCommand[
       args.recurse1,
       args.input2Path,
       args.recurse2,
-      generator)
+      generator,
+      args.partitions)
 
     // generate the raw values...
     val generated : CompareAdam.GeneratedResults[Collection[Seq[Any]]] = engine.generate(generator)

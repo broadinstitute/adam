@@ -31,9 +31,11 @@ import edu.berkeley.cs.amplab.adam.metrics.filters.GeneratorFilter
 
 class ComparisonTraversalEngine(schema: Seq[FieldValue], input1 : RDD[ADAMRecord], input2 : RDD[ADAMRecord])
                                (implicit sc : SparkContext) {
-  def this(schema : Seq[FieldValue], input1Paths : Seq[Path], input2Paths : Seq[Path])
+  def this(schema : Seq[FieldValue], input1Paths : Seq[Path], input2Paths : Seq[Path], partitions: Int = 0)
           (implicit sc : SparkContext) =
-    this(schema, sc.loadAdamFromPaths(input1Paths), sc.loadAdamFromPaths(input2Paths))(sc)
+    this(schema,
+      ComparisonTraversalEngine.repartition(sc.loadAdamFromPaths(input1Paths), partitions),
+      ComparisonTraversalEngine.repartition(sc.loadAdamFromPaths(input2Paths), partitions))(sc)
 
   lazy val projection = Projection(schema: _*)
 
@@ -86,5 +88,8 @@ object ComparisonTraversalEngine {
     generated.aggregate[A](aggregator.initialValue)(
       (aggregated, namedValue) => aggregator.combine(aggregated, aggregator.lift(namedValue._2)),
       aggregator.combine)
+
+  private[ComparisonTraversalEngine] def repartition(rdd: RDD[ADAMRecord], partitions: Int): RDD[ADAMRecord] =
+    if (partitions == 0) rdd else rdd.repartition(partitions)
 
 }
