@@ -16,17 +16,20 @@
 package edu.berkeley.cs.amplab.adam.rich
 
 import edu.berkeley.cs.amplab.adam.avro.ADAMRecord
-import edu.berkeley.cs.amplab.adam.models.ReferenceMapping
+import edu.berkeley.cs.amplab.adam.models.{ReferenceRegion, ReferenceMapping}
 
 object ADAMRecordContext {
+  implicit object ADAMRecordReferenceMapping extends ReferenceMapping[ADAMRecord] with Serializable {
+    def getReferenceId(value: ADAMRecord): Int = value.getReferenceId
+
+    def remapReferenceId(value: ADAMRecord, newId: Int): ADAMRecord =
+      ADAMRecord.newBuilder(value).setReferenceId(newId).build()
+
+    def getReferenceRegion(value: ADAMRecord): ReferenceRegion =
+      ReferenceRegion(value).getOrElse(null)
+  }
 
   implicit def adamRecordToReferenceMapped(rec : ADAMRecord) : ReferenceMapping[ADAMRecord] =
     ADAMRecordReferenceMapping
 }
 
-object ADAMRecordReferenceMapping extends ReferenceMapping[ADAMRecord] with Serializable {
-  def getReferenceId(value: ADAMRecord): Int = value.getReferenceId
-
-  def remapReferenceId(value: ADAMRecord, newId: Int): ADAMRecord =
-    ADAMRecord.newBuilder(value).setReferenceId(newId).build()
-}
