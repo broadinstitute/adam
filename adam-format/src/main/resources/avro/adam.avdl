@@ -303,26 +303,26 @@ record ADAMDatabaseVariantAnnotation {
 
 record GBGenotype {
 
-       union { null, string } referenceName = null;
-       union { null, int } referenceId = null;
-       union { null, long }   referenceLength = null;
-       union { null, string } referenceUrl = null;
+  union { null, string }        referenceName = null;
+  union { null, int }           referenceId = null;
+  union { null, long }          referenceLength = null;
+  union { null, string }        referenceUrl = null;
 
-       union { null, long } start = null;
+  union { null, long }          start = null;
+  union { null, long }          length = null;
        
-       union { null, string } sampleName = null;
-       union { null, long } sampleId = null;
+  union { null, string }        sampleName = null;
+  union { null, long }          sampleId = null;
 
-       union { null, array<string> } genotype = null;
-       union { null, double } likelihood = null;
+  union { null, array<string> } genotype = null;
+  union { null, double }        likelihood = null;
 
-       union { null, string } referenceAllele = null;
+  union { null, string }        referenceAllele = null;
 
-       union { null, int } depth = null;
-       union { null, boolean } isCall = null;
+  union { null, int }           filteredReadDepth = null;
+  union { null, int }           unfilteredReadDepth = null;
 
-       union { null, VariantType } variantType = null;
-
+  union { null, VariantType }   variantType = null;
 }
 
 record GBSampleMetadata {
