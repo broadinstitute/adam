@@ -22,6 +22,27 @@ import org.apache.spark.SparkContext._
 import scala.Predef._
 import org.apache.spark.SparkContext
 
+class NonoverlappingReferenceRegions(seqDict: SequenceDictionary, regions: Seq[(Int, Seq[ReferenceRegion])])
+  extends Serializable {
+  assert(regions != null, "Regions was set to null")
+
+  val regionMap = Map(regions.map(r => (r._1, new NonoverlappingRegions(seqDict, r._2))): _*)
+
+  def regionsFor[U](regionable: U)(implicit mapping: ReferenceMapping[U]): Iterable[ReferenceRegion] =
+    regionMap(mapping.getReferenceId(regionable)).regionsFor(regionable)
+}
+
+object NonoverlappingReferenceRegions {
+  def apply[T](seqDict : SequenceDictionary, values : Seq[T])(implicit mapping: ReferenceMapping[T]):
+    NonoverlappingReferenceRegions = {
+    new NonoverlappingReferenceRegions(seqDict,
+      values.map(v => (mapping.getReferenceId(v),mapping.getReferenceRegion(v)))
+        .groupBy(t => t._1)
+        .map(t => (t._1, t._2.map(k => k._2)))
+        .toSeq)
+  }
+}
+
 class NonoverlappingRegions(seqDict : SequenceDictionary, regions: Seq[ReferenceRegion]) extends Serializable {
   assert(regions != null, "Regions was set to null")
   assert(regions.head != null, "Regions must have at least one entry")
@@ -149,7 +170,12 @@ object Join {
                                valueManifest: ClassManifest[Value])
   : Value = {
     val regions = sc.broadcast(
-      new NonoverlappingRegions(seqDict, baseRDD.map(t => tMapping.getReferenceRegion(t)).collect())
+      new NonoverlappingReferenceRegions(seqDict, baseRDD.map(t =>
+        (tMapping.getReferenceId(t), tMapping.getReferenceRegion(t)))
+          .groupBy(t => t._1)
+          .map(t => (t._1, t._2.map(k => k._2)))
+          .collect()
+          .toSeq)
     )
 
     val smallerKeyed : RDD[(ReferenceRegion, T)] =

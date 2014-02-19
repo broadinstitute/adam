@@ -25,7 +25,9 @@ class ReferenceMappingRDDFunctionsSuite extends SparkFunSuite {
   var seqDict: SequenceDictionary = _
 
   before {
-    seqDict = SequenceDictionary(SequenceRecord(1, "1", 5, "test://chrom1"))
+    seqDict = SequenceDictionary(
+      SequenceRecord(1, "1", 5, "test://chrom1"),
+      SequenceRecord(2, "2", 5, "test://chrom2"))
   }
 
   test("Single region returns itself") {
@@ -54,7 +56,6 @@ class ReferenceMappingRDDFunctionsSuite extends SparkFunSuite {
     val regions = new NonoverlappingRegions(seqDict, Seq(region1, region2, region3))
     assert(regions.binaryRegionSearch(testRegion).size === 1)
   }
-
 
   test("ADAMRecords return proper references") {
     val built = ADAMRecord.newBuilder()
@@ -152,6 +153,55 @@ class ReferenceMappingRDDFunctionsSuite extends SparkFunSuite {
       0,
       ReferenceMappingRDDFunctionsSuite.count,
       ReferenceMappingRDDFunctionsSuite.sum) === 2)
+  }
+
+
+  sparkTest("Multiple reference regions do not throw exception") {
+    val builtRef1 = ADAMRecord.newBuilder()
+      .setReferenceId(1)
+      .setReferenceName("1")
+      .setReferenceLength(5)
+      .setReferenceUrl("test://chrom1")
+      .setStart(1)
+      .setReadMapped(true)
+      .setCigar("1M")
+      .build()
+    val builtRef2 = ADAMRecord.newBuilder()
+      .setReferenceId(2)
+      .setReferenceName("2")
+      .setReferenceLength(5)
+      .setReferenceUrl("test://chrom2")
+      .setStart(1)
+      .setReadMapped(true)
+      .setCigar("1M")
+      .build()
+
+    val record1 = builtRef1
+    val record2 = ADAMRecord.newBuilder(builtRef1).setStart(3).build()
+    val record3 = builtRef2
+    val baseRecord1 = ADAMRecord.newBuilder(builtRef1).setCigar("4M").build()
+    val baseRecord2 = ADAMRecord.newBuilder(builtRef2).setCigar("4M").build()
+
+    val baseRdd = sc.parallelize(Seq(baseRecord1, baseRecord2))
+    val recordsRdd = sc.parallelize(Seq(record1, record2, record3))
+
+    assert(Join.regionJoin[ADAMRecord, ADAMRecord, Boolean](
+      sc,
+      seqDict,
+      baseRdd,
+      recordsRdd,
+      true,
+      ReferenceMappingRDDFunctionsSuite.merge,
+      ReferenceMappingRDDFunctionsSuite.and))
+
+    assert(Join.regionJoin[ADAMRecord, ADAMRecord, Int](
+      sc,
+      seqDict,
+      baseRdd,
+      recordsRdd,
+      0,
+      ReferenceMappingRDDFunctionsSuite.count,
+      ReferenceMappingRDDFunctionsSuite.sum) === 3)
   }
 }
 
