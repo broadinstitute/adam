@@ -99,23 +99,22 @@ class ReferenceMappingRDDFunctionsSuite extends SparkFunSuite {
     assert(ReferenceMappingRDDFunctionsSuite.getReferenceRegion(record1) ===
       ReferenceMappingRDDFunctionsSuite.getReferenceRegion(record2))
 
-    assert(Join.regionJoin[ADAMRecord, ADAMRecord, Boolean](
+    assert(Join.regionJoin[ADAMRecord, ADAMRecord](
       sc,
       seqDict,
       rdd1,
-      rdd2,
-      true,
-      ReferenceMappingRDDFunctionsSuite.merge,
-      ReferenceMappingRDDFunctionsSuite.and))
+      rdd2).aggregate(true)(
+        ReferenceMappingRDDFunctionsSuite.merge,
+        ReferenceMappingRDDFunctionsSuite.and))
 
-    assert(Join.regionJoin[ADAMRecord, ADAMRecord, Int](
+    assert(Join.regionJoin[ADAMRecord, ADAMRecord](
       sc,
       seqDict,
       rdd1,
-      rdd2,
-      0,
-      ReferenceMappingRDDFunctionsSuite.count,
-      ReferenceMappingRDDFunctionsSuite.sum) === 1)
+      rdd2)
+      .aggregate(0)(
+        ReferenceMappingRDDFunctionsSuite.count,
+        ReferenceMappingRDDFunctionsSuite.sum) === 1)
   }
 
   sparkTest("Overlapping reference regions") {
@@ -136,23 +135,23 @@ class ReferenceMappingRDDFunctionsSuite extends SparkFunSuite {
     val baseRdd = sc.parallelize(Seq(baseRecord))
     val recordsRdd = sc.parallelize(Seq(record1, record2))
 
-    assert(Join.regionJoin[ADAMRecord, ADAMRecord, Boolean](
+    assert(Join.regionJoin[ADAMRecord, ADAMRecord](
       sc,
       seqDict,
       baseRdd,
-      recordsRdd,
-      true,
-      ReferenceMappingRDDFunctionsSuite.merge,
-      ReferenceMappingRDDFunctionsSuite.and))
+      recordsRdd)
+      .aggregate(true)(
+        ReferenceMappingRDDFunctionsSuite.merge,
+        ReferenceMappingRDDFunctionsSuite.and))
 
-    assert(Join.regionJoin[ADAMRecord, ADAMRecord, Int](
+    assert(Join.regionJoin[ADAMRecord, ADAMRecord](
       sc,
       seqDict,
       baseRdd,
-      recordsRdd,
-      0,
-      ReferenceMappingRDDFunctionsSuite.count,
-      ReferenceMappingRDDFunctionsSuite.sum) === 2)
+      recordsRdd)
+      .aggregate(0)(
+        ReferenceMappingRDDFunctionsSuite.count,
+        ReferenceMappingRDDFunctionsSuite.sum) === 2)
   }
 
 
@@ -185,23 +184,23 @@ class ReferenceMappingRDDFunctionsSuite extends SparkFunSuite {
     val baseRdd = sc.parallelize(Seq(baseRecord1, baseRecord2))
     val recordsRdd = sc.parallelize(Seq(record1, record2, record3))
 
-    assert(Join.regionJoin[ADAMRecord, ADAMRecord, Boolean](
+    assert(Join.regionJoin[ADAMRecord, ADAMRecord](
       sc,
       seqDict,
       baseRdd,
-      recordsRdd,
-      true,
-      ReferenceMappingRDDFunctionsSuite.merge,
-      ReferenceMappingRDDFunctionsSuite.and))
+      recordsRdd)
+      .aggregate(true)(
+        ReferenceMappingRDDFunctionsSuite.merge,
+        ReferenceMappingRDDFunctionsSuite.and))
 
-    assert(Join.regionJoin[ADAMRecord, ADAMRecord, Int](
+    assert(Join.regionJoin[ADAMRecord, ADAMRecord](
       sc,
       seqDict,
       baseRdd,
-      recordsRdd,
-      0,
-      ReferenceMappingRDDFunctionsSuite.count,
-      ReferenceMappingRDDFunctionsSuite.sum) === 3)
+      recordsRdd)
+      .aggregate(0)(
+        ReferenceMappingRDDFunctionsSuite.count,
+        ReferenceMappingRDDFunctionsSuite.sum) === 3)
   }
 }
 

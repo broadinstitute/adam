@@ -156,19 +156,15 @@ object Join {
    * A first warning: this method contains a "collect" initially; the baseRDD needs to be pretty small in order to allow
    * for this to be handled properly.
    */
-  def regionJoin[T, U, Value](sc: SparkContext,
+  def regionJoin[T, U](sc: SparkContext,
                                seqDict : SequenceDictionary,
                                baseRDD: RDD[T],
-                               joinedRDD: RDD[U],
-                               zeroValue: Value,
-                               seqOp: (Value, (T, U)) => Value,
-                               combOp: (Value, Value) => Value)
+                               joinedRDD: RDD[U])
                               (implicit tMapping: ReferenceMapping[T],
                                uMapping: ReferenceMapping[U],
                                tManifest: ClassManifest[T],
-                               uManifest: ClassManifest[U],
-                               valueManifest: ClassManifest[Value])
-  : Value = {
+                               uManifest: ClassManifest[U])
+  : RDD[(T, U)] = {
     val regions = sc.broadcast(
       new NonoverlappingReferenceRegions(seqDict, baseRDD.map(t =>
         (tMapping.getReferenceId(t), tMapping.getReferenceRegion(t)))
@@ -192,6 +188,6 @@ object Join {
         tMapping.getReferenceRegion(t).overlaps(uMapping.getReferenceRegion(u))
     })
 
-    filtered.map(rrtu => rrtu._2).aggregate(zeroValue)(seqOp, combOp)
+    filtered.map(rrtu => rrtu._2)
   }
 }
