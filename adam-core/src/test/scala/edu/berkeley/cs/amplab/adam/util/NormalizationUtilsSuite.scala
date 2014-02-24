@@ -17,13 +17,9 @@
 package edu.berkeley.cs.amplab.adam.util
 
 import org.scalatest.FunSuite
-import net.sf.samtools.{Cigar, CigarOperator, CigarElement, TextCigarCodec}
+import net.sf.samtools.TextCigarCodec
 import edu.berkeley.cs.amplab.adam.avro.ADAMRecord
 import edu.berkeley.cs.amplab.adam.rdd.AdamContext._
-import edu.berkeley.cs.amplab.adam.rich.RichADAMRecord
-import edu.berkeley.cs.amplab.adam.rich.RichADAMRecord._
-import edu.berkeley.cs.amplab.adam.rich.RichCigar
-import edu.berkeley.cs.amplab.adam.rich.RichCigar._
 
 class NormalizationUtilsSuite extends FunSuite {
 
