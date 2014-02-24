@@ -64,22 +64,6 @@
             <artifactId>scala-library</artifactId>
         </dependency>
         <dependency>
-            <groupId>${akka.group}</groupId>
-            <artifactId>akka-actor</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>${akka.group}</groupId>
-            <artifactId>akka-remote</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>${akka.group}</groupId>
-            <artifactId>akka-slf4j</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>${akka.group}</groupId>
-            <artifactId>akka-zeromq</artifactId>
-        </dependency>
-        <dependency>
             <groupId>org.apache.hadoop</groupId>
             <artifactId>hadoop-client</artifactId>
         </dependency>
@@ -90,7 +74,7 @@
         </dependency>
         <dependency>
             <groupId>org.apache.spark</groupId>
-            <artifactId>spark-core_${scala.version}</artifactId>
+            <artifactId>spark-core_${scala.artifact.suffix}</artifactId>
         </dependency>
         <dependency>
             <groupId>org.apache.avro</groupId>
@@ -130,7 +114,7 @@
         </dependency>
         <dependency>
             <groupId>org.scalatest</groupId>
-            <artifactId>scalatest_${scala.version}</artifactId>
+            <artifactId>scalatest_${scala.artifact.suffix}</artifactId>
             <scope>test</scope>
         </dependency>
     </dependencies>
