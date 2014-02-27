@@ -17,7 +17,7 @@ package edu.berkeley.cs.amplab.adam.rdd
 
 import parquet.filter.UnboundRecordFilter
 import edu.berkeley.cs.amplab.adam.models.ADAMVariantContext
-import edu.berkeley.cs.amplab.adam.avro.{ADAMPileup, ADAMRecord, Base}
+import edu.berkeley.cs.amplab.adam.avro.{ADAMVariant, ADAMPileup, ADAMRecord, Base}
 import org.apache.spark.rdd.RDD
 import edu.berkeley.cs.amplab.adam.util.SparkFunSuite
 import edu.berkeley.cs.amplab.adam.rdd.AdamContext._
@@ -35,6 +35,13 @@ class AdamContextSuite extends SparkFunSuite {
     // Convert the reads12.sam file into a parquet file
     val bamReads: RDD[ADAMRecord] = sc.adamLoad(readsFilepath)
     assert(bamReads.count === 200)
+  }
+
+  sparkTest("Can read variants with adamVariantLoad") {
+    val vcfFilepath = ClassLoader.getSystemClassLoader.getResource("small.vcf").getFile
+
+    val variants : RDD[ADAMVariant] = sc.adamLoad[ADAMVariant, UnboundRecordFilter](vcfFilepath)
+    assert(variants.count === 9)
   }
 
   sparkTest("can read a small .SAM file") {

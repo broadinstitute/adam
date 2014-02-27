@@ -21,7 +21,7 @@ import edu.berkeley.cs.amplab.adam.avro.{ADAMPileup,
                                          ADAMVariant, 
                                          ADAMVariantDomain, 
                                          ADAMNucleotideContig}
-import edu.berkeley.cs.amplab.adam.converters.{SAMRecordConverter, VariantContextConverter}
+import edu.berkeley.cs.amplab.adam.converters.{ADAMVariantConverter, SAMRecordConverter, VariantContextConverter}
 import edu.berkeley.cs.amplab.adam.models._
 import edu.berkeley.cs.amplab.adam.models.ADAMRod
 import edu.berkeley.cs.amplab.adam.projections.{ADAMRecordField,
@@ -282,6 +282,15 @@ class AdamContext(sc: SparkContext) extends Serializable with Logging {
     records.map((vcw: VariantContextWritable) => vcfRecordConverter.convert(vcw, bcast.value))
   }
 
+  private def adamVariantLoad(filePath : String) : RDD[ADAMVariant]= {
+    log.info("Reading legacy VCF file format %s to create ADAMVariant RDD".format(filePath))
+
+    val inputStream = FileSystem.get(sc.hadoopConfiguration).open(new Path(filePath)).getWrappedStream
+    val (dict, variants) = ADAMVariantConverter.convertVCF(inputStream)
+    inputStream.close()
+    sc.parallelize(variants.toSeq)
+  }
+
   /**
    * Loads an RDD of ADAM variant contexts from an input. This input can take two forms:
    * - A VCF/BCF file
@@ -350,6 +359,10 @@ class AdamContext(sc: SparkContext) extends Serializable with Logging {
         log.warn("Projection is ignored when loading a BAM file")
       }
       adamBamLoad(filePath).asInstanceOf[RDD[T]]
+
+    } else if (filePath.endsWith(".vcf") && classOf[ADAMVariant].isAssignableFrom(manifest[T].runtimeClass)) {
+      adamVariantLoad(filePath).asInstanceOf[RDD[T]]
+
     } else {
       adamParquetLoad(filePath, predicate, projection)
     }
