@@ -49,6 +49,7 @@ import parquet.hadoop.util.ContextUtil
 import scala.collection.Map
 import scala.collection.JavaConversions._
 import scala.Some
+import java.net.URI
 
 object AdamContext {
   // Add ADAM Spark context methods
@@ -285,9 +286,8 @@ class AdamContext(sc: SparkContext) extends Serializable with Logging {
   private def adamVariantLoad(filePath : String) : RDD[ADAMVariant]= {
     log.info("Reading legacy VCF file format %s to create ADAMVariant RDD".format(filePath))
 
-    val inputStream = FileSystem.get(sc.hadoopConfiguration).open(new Path(filePath)).getWrappedStream
+    val inputStream = sc.textFile(filePath)
     val (dict, variants) = ADAMVariantConverter.convertVCF(inputStream)
-    inputStream.close()
     sc.parallelize(variants.toSeq)
   }
 

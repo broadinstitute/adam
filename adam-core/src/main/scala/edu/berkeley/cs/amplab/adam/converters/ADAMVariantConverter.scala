@@ -19,13 +19,14 @@ import edu.berkeley.cs.amplab.adam.models.{SequenceRecord, SequenceDictionary}
 import edu.berkeley.cs.amplab.adam.avro.ADAMVariant
 import java.io._
 import scala.io.Source
+import org.apache.spark.rdd.RDD
 
 /**
  * NOT TO BE CHECKED IN TO ADAM WITHOUT FURTHER REVIEW.
  */
 object ADAMVariantConverter {
 
-  def convertVCF(input : InputStream) : (SequenceDictionary, Iterable[ADAMVariant]) = {
+  def convertVCF(input : RDD[String]) : (SequenceDictionary, Iterable[ADAMVariant]) = {
 
     def seqOp(pair : (SequenceDictionary,Iterable[ADAMVariant]), line : String) = {
       val (newDict, newLines) = convert(pair._1, line)
@@ -36,11 +37,9 @@ object ADAMVariantConverter {
       (p1._1 ++ p2._1, p1._2 ++ p2._2)
     }
 
-    Source.createBufferedSource(input).getLines().filter(!_.startsWith("#"))
+    input.filter(!_.startsWith("#"))
       .aggregate[(SequenceDictionary, Iterable[ADAMVariant])](
-      (new SequenceDictionary(Seq()), Seq())
-    )(
-      seqOp, combOp)
+      (new SequenceDictionary(Seq()), Seq()))(seqOp, combOp)
   }
 
   def convert(baseDict : SequenceDictionary, vcfLine : String) : (SequenceDictionary, Iterable[ADAMVariant]) = {
