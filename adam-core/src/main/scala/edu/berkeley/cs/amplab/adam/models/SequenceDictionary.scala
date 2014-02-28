@@ -15,7 +15,7 @@
  */
 package edu.berkeley.cs.amplab.adam.models
 
-import edu.berkeley.cs.amplab.adam.avro.{ADAMRecord, ADAMNucleotideContigFragment, ADAMContig}
+import edu.berkeley.cs.amplab.adam.avro.{ADAMRecord, ADAMSequenceRecord, ADAMNucleotideContigFragment, ADAMContig}
 import edu.berkeley.cs.amplab.adam.rdd.AdamContext._
 import net.sf.samtools.{SAMFileHeader, SAMFileReader, SAMSequenceRecord, SAMSequenceDictionary}
 import org.apache.avro.specific.SpecificRecord
@@ -133,7 +133,7 @@ class SequenceDictionary(val recordsIn: Array[SequenceRecord]) extends Serializa
    * @return A Map whose values change the referenceIds in this dictionary; every referenceId in the source
    *         dictionary should be present in this Map
    */
-  def mapTo(dict: SequenceDictionary): Map[Int, Int] = {
+  def mapTo(dict: SequenceDictionary): immutable.Map[Int, Int] = {
 
     /*
      * we start by assuming that all the sequences in the target dictionary will maintain their
@@ -179,7 +179,7 @@ class SequenceDictionary(val recordsIn: Array[SequenceRecord]) extends Serializa
     assert(recordIndices.keys.filter(!idxMap.contains(_)).isEmpty,
       "There were keys which weren't remapped by the mapTo idxMap")
 
-    idxMap
+    idxMap.toMap
   }
 
   /**
@@ -280,6 +280,16 @@ class SequenceDictionary(val recordsIn: Array[SequenceRecord]) extends Serializa
 object SequenceDictionary {
 
   def apply(recordsIn: SequenceRecord*) = new SequenceDictionary(recordsIn.toArray)
+
+  private def convertRecord(record: ADAMSequenceRecord): SequenceRecord =
+    SequenceRecord(
+      record.getReferenceId,
+      record.getReferenceName,
+      record.getReferenceLength,
+      record.getReferenceUrl)
+
+  def fromAvroDefs(adamSequenceRecords: Seq[ADAMSequenceRecord]) =
+    new SequenceDictionary(adamSequenceRecords.map(convertRecord))
 
   /**
    * Extracts a SAM sequence dictionary from a SAM file header and returns an

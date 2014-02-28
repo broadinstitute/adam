@@ -346,7 +346,10 @@ class MultiContigNonoverlappingRegions(seqDict: SequenceDictionary, regions: Seq
     "Regions was set to null")
 
   assert(!regions.map(_._1).exists(!seqDict.containsRefId(_)),
-    "SeqDict doesn't contain a refId from the regions sequence")
+  "SeqDict doesn't contain a refId for %s from the regions sequence"
+    .format(regions.map(_._1)
+      .filterNot(seqDict.containsRefId)
+      .mkString(",")))
 
   val regionMap : Map[Int,NonoverlappingRegions] =
     Map(regions.map(r => (r._1, new NonoverlappingRegions(seqDict, r._2))): _*)

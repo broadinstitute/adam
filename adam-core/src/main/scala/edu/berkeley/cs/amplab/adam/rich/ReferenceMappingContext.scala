@@ -15,8 +15,8 @@
  */
 package edu.berkeley.cs.amplab.adam.rich
 
-import edu.berkeley.cs.amplab.adam.models.{ReferenceRegion, ReferenceMapping}
-import edu.berkeley.cs.amplab.adam.avro.ADAMRecord
+import edu.berkeley.cs.amplab.adam.models.{SequenceDictionary, ReferenceRegion, ReferenceMapping}
+import edu.berkeley.cs.amplab.adam.avro.{ADAMVariant, ADAMRecord}
 
 /**
  * A common location in which to drop some ReferenceMapping implementations.
@@ -42,9 +42,22 @@ object ReferenceMappingContext {
     def getReferenceRegion(value: ReferenceRegion): ReferenceRegion = value
   }
 
+  implicit object ADAMVariantReferenceMapping extends ReferenceMapping[ADAMVariant] with Serializable {
+    def getReferenceId(value: ADAMVariant): Int = value.getReferenceId
+
+    def remapReferenceId(value: ADAMVariant, newId: Int): ADAMVariant =
+      ADAMVariant.newBuilder(value).setReferenceId(newId).build()
+
+    def getReferenceRegion(value: ADAMVariant): ReferenceRegion =
+      ReferenceRegion(value.getReferenceId, value.getPosition, value.getPosition + value.getReferenceAllele.length)
+  }
+
   implicit def adamRecordToReferenceMapped(rec : ADAMRecord) : ReferenceMapping[ADAMRecord] =
     ADAMRecordReferenceMapping
 
   implicit def referenceRegionToReferenceMapped(reg : ReferenceRegion) : ReferenceMapping[ReferenceRegion] =
     ReferenceRegionReferenceMapping
+
+  implicit def variantToReferenceMapped(variant: ADAMVariant): ReferenceMapping[ADAMVariant] =
+    ADAMVariantReferenceMapping
 }

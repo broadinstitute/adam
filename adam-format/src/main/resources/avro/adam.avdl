@@ -301,4 +301,14 @@ record ADAMDatabaseVariantAnnotation {
 
 }
 
+/**
+ * This record is used when encoding only a SequenceDictionary.
+ */
+record ADAMSequenceRecord {
+  union { null, int } referenceId = null;
+  union { null, string } referenceName = null;
+  union { null, long } referenceLength = null;
+  union { null, string } referenceUrl = null;
+}
+
 }

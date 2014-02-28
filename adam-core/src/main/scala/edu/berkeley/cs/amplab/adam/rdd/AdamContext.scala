@@ -15,10 +15,10 @@
  */
 package edu.berkeley.cs.amplab.adam.rdd
 
-import edu.berkeley.cs.amplab.adam.avro.{ADAMPileup, 
+import edu.berkeley.cs.amplab.adam.avro._
                                          ADAMRecord,
                                          ADAMNucleotideContigFragment}
-import edu.berkeley.cs.amplab.adam.converters.SAMRecordConverter
+import edu.berkeley.cs.amplab.adam.converters.{ADAMVariantConverter, SAMRecordConverter, VariantContextConverter}
 import edu.berkeley.cs.amplab.adam.models._
 import edu.berkeley.cs.amplab.adam.models.ADAMRod
 import edu.berkeley.cs.amplab.adam.projections.{ADAMRecordField,
@@ -47,7 +47,7 @@ import parquet.hadoop.util.ContextUtil
 import scala.Some
 import scala.collection.JavaConversions._
 import scala.collection.Map
-
+import edu.berkeley.cs.amplab.adam.models.ADAMRod
 
 object AdamContext {
   // Add ADAM Spark context methods
@@ -276,6 +276,86 @@ class AdamContext(sc: SparkContext) extends Serializable with Logging {
   }
 
   /**
+   * Loads a VCF file and converts the Variant contexts in the file into ADAM format.
+   *
+   * @param filePath Path to the VCF file.
+   * @return Returns an RDD containing ADAM variant contexts.
+   */
+  private def adamVcfLoad(filePath: String): RDD[ADAMVariantContext] = {
+    log.info("Reading legacy VCF file format %s to create RDD".format(filePath))
+    val job = new Job(sc.hadoopConfiguration)
+    val records = sc.newAPIHadoopFile(filePath, classOf[VCFInputFormat], classOf[LongWritable],
+      classOf[VariantContextWritable], ContextUtil.getConfiguration(job))
+      .map(_._2)
+      .filter(_ != null)
+
+    val seekable = WrapSeekable.openPath(sc.hadoopConfiguration, new Path(filePath))
+    val vcfHeader = VCFHeaderReader.readHeaderFrom(seekable)
+    val seqDict = SequenceDictionary.fromVCFHeader(vcfHeader)
+    val bcast = sc.broadcast(seqDict)
+
+    val vcfRecordConverter = new VariantContextConverter
+    records.map((vcw: VariantContextWritable) => vcfRecordConverter.convert(vcw, bcast.value))
+  }
+
+  private def adamVariantLoad(filePath : String, seqDict: SequenceDictionary = SequenceDictionary()) : RDD[ADAMVariant]= {
+    log.info("Reading legacy VCF file format %s to create ADAMVariant RDD".format(filePath))
+
+    val inputStream = sc.textFile(filePath)
+    val (dict, variants) = ADAMVariantConverter.convertVCF(inputStream, seqDict)
+    sc.parallelize(variants.toSeq)
+  }
+
+  /**
+   * Loads an RDD of ADAM variant contexts from an input. This input can take two forms:
+   * - A VCF/BCF file
+   * - A collection of ADAM variant/genotype/annotation files
+   *
+   * @param filePath Path to the file to load.
+   * @param variantPredicate Predicate to apply to variants.
+   * @param genotypePredicate Predicate to apply to genotypes.
+   * @param variantProjection Projection to apply to variants.
+   * @param genotypeProjection Projection to apply to genotypes.
+   * @return An RDD containing ADAM variant contexts.
+   */
+  def adamVariantContextLoad[U <: UnboundRecordFilter, V <: UnboundRecordFilter](filePath: String,
+                                                                                 variantPredicate: Option[Class[U]] = None,
+                                                                                 genotypePredicate: Option[Class[V]] = None,
+                                                                                 variantProjection: Option[Schema] = None,
+                                                                                 genotypeProjection: Option[Schema] = None,
+                                                                                 annotationProjection: Map[ADAMVariantAnnotations.Value, Option[Schema]] = Map[ADAMVariantAnnotations.Value, Option[Schema]]()
+                                                                                  ): RDD[ADAMVariantContext] = {
+    if (filePath.endsWith(".vcf") || filePath.endsWith(".bcf")) {
+      if (variantPredicate.isDefined || genotypePredicate.isDefined) {
+        log.warn("Predicate is ignored when loading a VCF file.")
+      }
+      if (variantProjection.isDefined || genotypeProjection.isDefined) {
+        log.warn("Projection is ignored when loading a VCF file.")
+      }
+
+      adamVcfLoad(filePath)
+    } else {
+      log.info("Reading variants.")
+      val variants: RDD[ADAMVariant] = adamLoad(filePath + ".v", null, variantPredicate, variantProjection)
+
+      log.info("Reading genotypes.")
+      val genotypes: RDD[ADAMGenotype] = adamLoad(filePath + ".g", null, genotypePredicate, genotypeProjection)
+
+      val domains: Option[RDD[ADAMVariantDomain]] = if (annotationProjection.contains(ADAMVariantAnnotations.ADAMVariantDomain)) {
+        val domainProjection = annotationProjection(ADAMVariantAnnotations.ADAMVariantDomain)
+        val fileExtension = ADAMVariantAnnotations.fileExtensions(ADAMVariantAnnotations.ADAMVariantDomain)
+
+        Some(adamLoad(filePath + fileExtension, projection = domainProjection))
+      } else {
+        None
+      }
+
+      log.info("Merging variant and genotype data.")
+      ADAMVariantContext.mergeVariantsAndGenotypes(variants, genotypes, domains)
+    }
+  }
+
+  /**
    * This method will create a new RDD.
    * @param filePath The path to the input data
    * @param predicate An optional pushdown predicate to use when reading the data
@@ -284,7 +364,7 @@ class AdamContext(sc: SparkContext) extends Serializable with Logging {
    * @return An RDD with records of the specified type
    */
   def adamLoad[T <% SpecificRecord : Manifest, U <: UnboundRecordFilter]
-  (filePath: String, predicate: Option[Class[U]] = None, projection: Option[Schema] = None): RDD[T] = {
+  (filePath: String, seqDictFile: String = null, predicate: Option[Class[U]] = None, projection: Option[Schema] = None): RDD[T] = {
 
     if (filePath.endsWith(".bam") || filePath.endsWith(".sam") && classOf[ADAMRecord].isAssignableFrom(manifest[T].erasure)) {
       if (predicate.isDefined) {
@@ -294,6 +374,15 @@ class AdamContext(sc: SparkContext) extends Serializable with Logging {
         log.warn("Projection is ignored when loading a BAM file")
       }
       adamBamLoad(filePath).asInstanceOf[RDD[T]]
+
+    } else if (filePath.endsWith(".vcf") && classOf[ADAMVariant].isAssignableFrom(manifest[T].runtimeClass)) {
+      val seqDict =
+        if (seqDictFile != null)
+          SequenceDictionary.fromAvroDefs(adamLoad[ADAMSequenceRecord, UnboundRecordFilter](seqDictFile).collect())
+        else
+          SequenceDictionary()
+      adamVariantLoad(filePath, seqDict).asInstanceOf[RDD[T]]
+
     } else {
       adamParquetLoad(filePath, predicate, projection)
     }
