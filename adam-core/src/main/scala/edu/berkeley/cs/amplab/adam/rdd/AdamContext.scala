@@ -134,7 +134,7 @@ object AdamContext {
       ADAMVariant.newBuilder(value).setReferenceId(newId).build()
 
     def getReferenceRegion(value: ADAMVariant): ReferenceRegion =
-      ReferenceRegion(getReferenceId(value), value.getPosition(), value.getPosition())
+      ReferenceRegion(getReferenceId(value), value.getPosition, value.getPosition)
   }
 }
 
