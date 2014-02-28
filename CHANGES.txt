@@ -32,6 +32,8 @@ Trunk (not yet released)
   * ISSUE 101: Adding ability to call plugins from the command line not defined in the main Adam jar and included
     in the classpath.
 
+  * ISSUE 83: Add ability to perform a "region join" to RDDs of ADAMRecords.
+
   OPTIMIZATIONS
 
   * Transformed phred --> double calculation into a LUT, which improves performance. This change was introduced
@@ -41,6 +43,9 @@ Trunk (not yet released)
     do pileup conversion. This was introduced in PR#125 which came out of issue #121.
 
   IMPROVEMENTS
+
+  * ISSUE 148: Moved SparkContext creation code for ADAM to the adam-core module instead of adam-cli. This allows downstream
+    users to only depend on adam-core instead of adam-cli
 
   * ISSUE 92: improved the representation of the types of 'optional' fields from the BAM, and their encoding
     in the 'attributes' field of ADAMRecord.  This encoding now includes the type, and should no longer be 
