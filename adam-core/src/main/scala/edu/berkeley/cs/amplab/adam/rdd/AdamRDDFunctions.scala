@@ -32,7 +32,7 @@ import edu.berkeley.cs.amplab.adam.converters.GenotypesToVariantsConverter
 import edu.berkeley.cs.amplab.adam.util.{MapTools, ParquetLogger}
 import java.util.logging.Level
 
-class AdamRDDFunctions[T <% SpecificRecord : Manifest](rdd: RDD[T]) extends Serializable {
+class s[T <% SpecificRecord : Manifest](rdd: RDD[T]) extends Serializable {
 
   def adamSave(filePath: String, blockSize: Int = 128 * 1024 * 1024,
                pageSize: Int = 1 * 1024 * 1024, compressCodec: CompressionCodecName = CompressionCodecName.GZIP,
@@ -53,6 +53,12 @@ class AdamRDDFunctions[T <% SpecificRecord : Manifest](rdd: RDD[T]) extends Seri
       ContextUtil.getConfiguration(job))
     // Return the origin rdd
     rdd
+  }
+
+  def sequenceRecord(rdd: RDD[T]): SequenceDictionary = {
+    rdd.distinct().aggregate(SequenceDictionary())(
+      (dict: SequenceDictionary, rec: T) => dict + SequenceRecord.fromSpecificRecord(rec),
+      (dict1: SequenceDictionary, dict2: SequenceDictionary) => dict1 ++ dict2)
   }
 
 }
