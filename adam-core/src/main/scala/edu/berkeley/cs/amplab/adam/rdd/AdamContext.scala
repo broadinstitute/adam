@@ -129,8 +129,12 @@ object AdamContext {
 
   class ADAMVariantReferenceMapping(dict : SequenceDictionary) extends ReferenceMapping[ADAMVariant] {
     def getReferenceId(value: ADAMVariant): Int = dict(value.getReferenceName).id
+
     def remapReferenceId(value: ADAMVariant, newId: Int): ADAMVariant =
       ADAMVariant.newBuilder(value).setReferenceId(newId).build()
+
+    def getReferenceRegion(value: ADAMVariant): ReferenceRegion =
+      ReferenceRegion(getReferenceId(value), value.getPosition(), value.getPosition())
   }
 }
 
