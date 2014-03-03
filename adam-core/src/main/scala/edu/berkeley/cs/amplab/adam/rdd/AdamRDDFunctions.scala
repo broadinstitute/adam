@@ -56,9 +56,9 @@ class AdamRDDFunctions[T <% SpecificRecord : Manifest](rdd: RDD[T]) extends Seri
   }
 
   def sequenceDictionary: SequenceDictionary = {
-    rdd.distinct().aggregate(SequenceDictionary())(
-      (dict: SequenceDictionary, rec: T) => dict + SequenceRecord.fromSpecificRecord(rec),
-      (dict1: SequenceDictionary, dict2: SequenceDictionary) => dict1 ++ dict2)
+    rdd.map(SequenceRecord.fromSpecificRecord(_))
+      .distinct()
+      .aggregate(SequenceDictionary())(_+_, _++_)
   }
 
 }
