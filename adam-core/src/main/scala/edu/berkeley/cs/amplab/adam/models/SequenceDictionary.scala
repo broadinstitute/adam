@@ -128,7 +128,7 @@ class SequenceDictionary(recordsIn: Iterable[SequenceRecord]) extends Serializab
    * @return A Map whose values change the referenceIds in this dictionary; every referenceId in the source
    *         dictionary should be present in this Map
    */
-  def mapTo(dict: SequenceDictionary): Map[Int, Int] = {
+  def mapTo(dict: SequenceDictionary): immutable.Map[Int, Int] = {
 
     /*
      * we start by assuming that all the sequences in the target dictionary will maintain their
@@ -174,7 +174,7 @@ class SequenceDictionary(recordsIn: Iterable[SequenceRecord]) extends Serializab
     assert(recordIndices.keys.filter(!idxMap.contains(_)).isEmpty,
       "There were keys which weren't remapped by the mapTo idxMap")
 
-    idxMap
+    idxMap.toMap
   }
 
   /**
