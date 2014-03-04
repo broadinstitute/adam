@@ -26,7 +26,7 @@ import org.apache.spark.rdd.RDD
  */
 object ADAMVariantConverter {
 
-  def convertVCF(input : RDD[String]) : (SequenceDictionary, Iterable[ADAMVariant]) = {
+  def convertVCF(input : RDD[String], baseDict: SequenceDictionary = SequenceDictionary()) : (SequenceDictionary, Iterable[ADAMVariant]) = {
 
     def seqOp(pair : (SequenceDictionary,Iterable[ADAMVariant]), line : String) = {
       val (newDict, newLines) = convert(pair._1, line)
@@ -39,7 +39,7 @@ object ADAMVariantConverter {
 
     input.filter(!_.startsWith("#"))
       .aggregate[(SequenceDictionary, Iterable[ADAMVariant])](
-      (new SequenceDictionary(Seq()), Seq()))(seqOp, combOp)
+      (baseDict, Seq()))(seqOp, combOp)
   }
 
   def convert(baseDict : SequenceDictionary, vcfLine : String) : (SequenceDictionary, Iterable[ADAMVariant]) = {

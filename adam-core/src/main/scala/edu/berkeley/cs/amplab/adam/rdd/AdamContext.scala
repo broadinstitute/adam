@@ -15,12 +15,7 @@
  */
 package edu.berkeley.cs.amplab.adam.rdd
 
-import edu.berkeley.cs.amplab.adam.avro.{ADAMPileup, 
-                                         ADAMRecord, 
-                                         ADAMGenotype, 
-                                         ADAMVariant, 
-                                         ADAMVariantDomain, 
-                                         ADAMNucleotideContig}
+import edu.berkeley.cs.amplab.adam.avro._
 import edu.berkeley.cs.amplab.adam.converters.{ADAMVariantConverter, SAMRecordConverter, VariantContextConverter}
 import edu.berkeley.cs.amplab.adam.models._
 import edu.berkeley.cs.amplab.adam.models.ADAMRod
@@ -50,6 +45,8 @@ import scala.collection.Map
 import scala.collection.JavaConversions._
 import scala.Some
 import java.net.URI
+import scala.Some
+import edu.berkeley.cs.amplab.adam.models.ADAMRod
 
 object AdamContext {
   // Add ADAM Spark context methods
@@ -283,11 +280,11 @@ class AdamContext(sc: SparkContext) extends Serializable with Logging {
     records.map((vcw: VariantContextWritable) => vcfRecordConverter.convert(vcw, bcast.value))
   }
 
-  private def adamVariantLoad(filePath : String) : RDD[ADAMVariant]= {
+  private def adamVariantLoad(filePath : String, seqDict: SequenceDictionary = SequenceDictionary()) : RDD[ADAMVariant]= {
     log.info("Reading legacy VCF file format %s to create ADAMVariant RDD".format(filePath))
 
     val inputStream = sc.textFile(filePath)
-    val (dict, variants) = ADAMVariantConverter.convertVCF(inputStream)
+    val (dict, variants) = ADAMVariantConverter.convertVCF(inputStream, seqDict)
     sc.parallelize(variants.toSeq)
   }
 
@@ -321,10 +318,10 @@ class AdamContext(sc: SparkContext) extends Serializable with Logging {
       adamVcfLoad(filePath)
     } else {
       log.info("Reading variants.")
-      val variants: RDD[ADAMVariant] = adamLoad(filePath + ".v", variantPredicate, variantProjection)
+      val variants: RDD[ADAMVariant] = adamLoad(filePath + ".v", null, variantPredicate, variantProjection)
 
       log.info("Reading genotypes.")
-      val genotypes: RDD[ADAMGenotype] = adamLoad(filePath + ".g", genotypePredicate, genotypeProjection)
+      val genotypes: RDD[ADAMGenotype] = adamLoad(filePath + ".g", null, genotypePredicate, genotypeProjection)
 
       val domains: Option[RDD[ADAMVariantDomain]] = if (annotationProjection.contains(ADAMVariantAnnotations.ADAMVariantDomain)) {
         val domainProjection = annotationProjection(ADAMVariantAnnotations.ADAMVariantDomain)
@@ -349,7 +346,7 @@ class AdamContext(sc: SparkContext) extends Serializable with Logging {
    * @return An RDD with records of the specified type
    */
   def adamLoad[T <% SpecificRecord : Manifest, U <: UnboundRecordFilter]
-  (filePath: String, predicate: Option[Class[U]] = None, projection: Option[Schema] = None): RDD[T] = {
+  (filePath: String, seqDictFile: String = null, predicate: Option[Class[U]] = None, projection: Option[Schema] = None): RDD[T] = {
 
     if (filePath.endsWith(".bam") || filePath.endsWith(".sam") && classOf[ADAMRecord].isAssignableFrom(manifest[T].erasure)) {
       if (predicate.isDefined) {
@@ -361,7 +358,12 @@ class AdamContext(sc: SparkContext) extends Serializable with Logging {
       adamBamLoad(filePath).asInstanceOf[RDD[T]]
 
     } else if (filePath.endsWith(".vcf") && classOf[ADAMVariant].isAssignableFrom(manifest[T].runtimeClass)) {
-      adamVariantLoad(filePath).asInstanceOf[RDD[T]]
+      val seqDict =
+        if (seqDictFile != null)
+          SequenceDictionary.fromAvroDefs(adamLoad[ADAMSequenceRecord, UnboundRecordFilter](seqDictFile).collect())
+        else
+          SequenceDictionary()
+      adamVariantLoad(filePath, seqDict).asInstanceOf[RDD[T]]
 
     } else {
       adamParquetLoad(filePath, predicate, projection)

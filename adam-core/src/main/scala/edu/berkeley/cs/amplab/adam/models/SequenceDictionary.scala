@@ -15,8 +15,7 @@
  */
 package edu.berkeley.cs.amplab.adam.models
 
-import edu.berkeley.cs.amplab.adam.avro.{ADAMRecord, ADAMNucleotideContig}
-import edu.berkeley.cs.amplab.adam.avro.ADAMRecord
+import edu.berkeley.cs.amplab.adam.avro.{ADAMSequenceRecord, ADAMRecord, ADAMNucleotideContig}
 import edu.berkeley.cs.amplab.adam.rdd.AdamContext._
 import net.sf.samtools.{SAMFileHeader, SAMFileReader, SAMSequenceRecord, SAMSequenceDictionary}
 import org.apache.avro.specific.SpecificRecord
@@ -289,6 +288,16 @@ class SequenceDictionary(recordsIn: Iterable[SequenceRecord]) extends Serializab
 object SequenceDictionary {
 
   def apply(recordsIn: SequenceRecord*) = new SequenceDictionary(recordsIn)
+
+  private def convertRecord(record: ADAMSequenceRecord): SequenceRecord =
+    SequenceRecord(
+      record.getReferenceId,
+      record.getReferenceName,
+      record.getReferenceLength,
+      record.getReferenceUrl)
+
+  def fromAvroDefs(adamSequenceRecords: Seq[ADAMSequenceRecord]) =
+    new SequenceDictionary(adamSequenceRecords.map(convertRecord))
 
   /**
    * Extracts a SAM sequence dictionary from a SAM file header and returns an
