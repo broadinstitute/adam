@@ -126,16 +126,6 @@ object AdamContext {
     val jars: Seq[String] = if (sparkJars.isEmpty) Nil else sparkJars
     new SparkContext(master, appName, sparkHome, jars, environment)
   }
-
-  class ADAMVariantReferenceMapping(dict : SequenceDictionary) extends ReferenceMapping[ADAMVariant] {
-    def getReferenceId(value: ADAMVariant): Int = dict(value.getReferenceName).id
-
-    def remapReferenceId(value: ADAMVariant, newId: Int): ADAMVariant =
-      ADAMVariant.newBuilder(value).setReferenceId(newId).build()
-
-    def getReferenceRegion(value: ADAMVariant): ReferenceRegion =
-      ReferenceRegion(getReferenceId(value), value.getPosition, value.getPosition)
-  }
 }
 
 class AdamContext(sc: SparkContext) extends Serializable with Logging {
