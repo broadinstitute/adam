@@ -57,7 +57,7 @@ class Reads2Ref(protected val args: Reads2RefArgs) extends AdamSparkCommand[Read
   val companion = Reads2Ref
 
   def run(sc: SparkContext, job: Job) {
-    val reads: RDD[ADAMRecord] = sc.adamLoad(args.readInput, Some(classOf[LocusPredicate]))
+    val reads: RDD[ADAMRecord] = sc.adamLoad(args.readInput, predicate=Some(classOf[LocusPredicate]))
 
     val readCount = reads.count()
 
