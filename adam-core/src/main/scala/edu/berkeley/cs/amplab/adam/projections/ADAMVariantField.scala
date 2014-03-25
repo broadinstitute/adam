@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013. Regents of the University of California
+ * Copyright (c) 2014. Mount Sinai School of Medicine
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,39 +18,12 @@ package edu.berkeley.cs.amplab.adam.projections
 
 import edu.berkeley.cs.amplab.adam.avro.ADAMVariant
 
-/**
- * This enumeration exist in order to reduce typo errors in the code. It needs to be kept
- * in sync with any changes to ADAMVariant.
- *
- * This enumeration is necessary because Parquet needs the field string names
- * for predicates and projections.
- */
-object ADAMVariantField extends FieldEnumeration(ADAMVariant.SCHEMA$) {
-  val referenceId,
-  referenceName,
+class ADAMVariantField extends FieldEnumeration(ADAMVariant.SCHEMA$)
+{
+  val contig,
   position,
   referenceAllele,
-  isReference,
-  variant,
-  variantType,
-  id,
-  quality,
-  filters,
-  filtersRun,
-  alleleFrequency,
-  rmsBaseQuality,
-  siteRmsMappingQuality,
-  siteMapQZeroCounts,
-  totalSiteMapCounts,
-  numberOfSamplesWithData,
-  totalNumberOfSamplesCount,
-  strandBias,
-  svType,
-  svLength,
-  svIsPrecise,
-  svEnd,
-  svConfidenceIntervalStartLow,
-  svConfidenceIntervalStartHigh,
-  svConfidenceIntervalEndLow,
-  svConfidenceIntervalEndHigh = SchemaValue
+  variantAllele
+
+    = SchemaValue
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2013. Regents of the University of California
+ * Copyright (c) 2014. Mount Sinai School of Medicine
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,49 +14,26 @@
  * limitations under the License.
  */
 
-package edu.berkeley.cs.amplab.adam.projections
+package edu.berkeley.cs.amplab.adam.projections.variation
 
+import edu.berkeley.cs.amplab.adam.projections.FieldEnumeration
 import edu.berkeley.cs.amplab.adam.avro.ADAMGenotype
 
-/**
- * This enumeration exist in order to reduce typo errors in the code. It needs to be kept
- * in sync with any changes to ADAMGenotype.
- *
- * This enumeration is necessary because Parquet needs the field string names
- * for predicates and projections.
- */
 object ADAMGenotypeField extends FieldEnumeration(ADAMGenotype.SCHEMA$) {
-  val referenceId,
-  referenceName,
-  position,
-  sampleId,
-  ploidy,
-  haplotypeNumber,
-  alleleVariantType,
-  allele,
-  isReference,
-  referenceAllele,
-  expectedAlleleDosage,
-  genotypeQuality,
-  depth,
-  phredLikelihoods,
-  phredPosteriorLikelihoods,
-  ploidyStateGenotypeLikelihoods,
-  haplotypeQuality,
-  rmsBaseQuality,
-  rmsMappingQuality,
-  readsMappedForwardStrand,
-  readsMappedMapQ0,
-  isPhased,
-  isPhaseSwitch,
-  phaseSetId,
-  phaseQuality,
-  svType,
-  svLength,
-  svIsPrecise,
-  svEnd,
-  svConfidenceIntervalStartLow,
-  svConfidenceIntervalStartHigh,
-  svConfidenceIntervalEndLow,
-  svConfidenceIntervalEndHigh = SchemaValue
+  val variant,
+  variantCallingAnnotations ,
+  sampleId ,
+  sampleDescription ,
+  processingDescription ,
+  alleles ,
+  referenceReadDepth ,
+  alternateReadDepth ,
+  readDepth ,
+  genotypeQuality ,
+  genotypeLikelihoods ,
+  splitFromMultiAllelic,
+  isPhased ,
+  phaseSetId ,
+  phaseQuality
+  = SchemaValue
 }

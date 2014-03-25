@@ -99,15 +99,23 @@ object RegionJoin {
      * - carry a sequence dictionary through the computation.
      **/
 
-    // collect, calculate, broadcast.  BLEARGH!!
-    val regions = sc.broadcast(
-      new MultiContigNonoverlappingRegions(seqDict, baseRDD.map(t =>
-        (tMapping.getReferenceId(t), tMapping.getReferenceRegion(t)))
-        .groupBy(t => t._1)
-        .map(t => (t._1, t._2.map(k => k._2)))
-        .collect()
-        .toSeq)
-    )
+    // First, we group the regions in the left side of the join by their refId,
+    // and collect them.
+    val collectedLeft : Seq[(Int,Seq[ReferenceRegion])] =
+      baseRDD
+        .map(t => (tMapping.getReferenceId(t), tMapping.getReferenceRegion(t)))  // RDD[(Int,ReferenceRegion)]
+        .groupBy(_._1)                            // RDD[(Int,Seq[(Int,ReferenceRegion)])]
+        .map(t => (t._1, t._2.map(_._2)))         // RDD[(Int,Seq[ReferenceRegion])]
+        .collect()                                // Iterable[(Int,Seq[ReferenceRegion])]
+        .toSeq                                    // Seq[(Int,Seq[ReferenceRegion])]
+
+    // Next, we turn that into a data structure that reduces those regions to their non-overlapping
+    // pieces, which we will use as a partition.
+    val multiNonOverlapping = new MultiContigNonoverlappingRegions(seqDict, collectedLeft)
+
+    // Then, we broadcast those partitions -- this will be the function that allows us to
+    // partition all the regions on the right side of the join.
+    val regions = sc.broadcast( multiNonOverlapping )
 
     // each element of the left-side RDD should have exactly one partition.
     val smallerKeyed : RDD[(ReferenceRegion, T)] =
@@ -141,7 +149,7 @@ object RegionJoin {
    * realistic sized sets.
    *
    */
-  def cartesianFilter[T, U](sc: SparkContext,
+  def cartesianFilter[T, U](baseRDD: RDD[T],
                             seqDict : SequenceDictionary,
                             baseRDD: RDD[T],
                             joinedRDD: RDD[U])
@@ -176,6 +184,15 @@ object RegionJoin {
  */
 class NonoverlappingRegions(seqDict : SequenceDictionary, regions: Seq[ReferenceRegion]) extends Serializable {
 
+  assert(regions != null, "regions parameter cannot be null")
+
+  // The regions Seq needs to be of non-zero size, since otherwise we have to add special-case
+  // checks to all the methods below to make sure that 'endpoints' isn't empty.  Also, it shouldn't
+  // make any sense to have a set of non-overlapping regions for ... no regions.
+  // Also, without this check, we can't tell which chromosome this NonoverlappingRegions object is for.
+  assert( regions.size > 0, "regions list must be non-empty" )
+  assert(regions.head != null, "regions must have at least one non-null entry")
+
   assert(seqDict != null, "Sequence Dictionary cannot be null")
   assert(regions != null, "regions parameter cannot be null")
   assert(regions.head != null, "Regions must have at least one entry")
@@ -185,7 +202,7 @@ class NonoverlappingRegions(seqDict : SequenceDictionary, regions: Seq[Reference
   val referenceLength : Long = seqDict(referenceId).length
 
   // invariant: all the values in the 'regions' list have the same referenceId
-  assert( !regions.exists(_.refId != referenceId) )
+  assert( regions.forall(_.refId == referenceId) )
 
   // We represent the distinct unions, the 'nonoverlapping-set' of regions, as a set of endpoints,
   // so that we can do reasonably-fast binary searching on them to determine the slice of nonoverlapping-set
@@ -297,7 +314,7 @@ class NonoverlappingRegions(seqDict : SequenceDictionary, regions: Seq[Reference
    * @return a boolean -- the input value should only participate in the regionJoin if the return value
    *         here is 'true'.
    */
-  def filter[U](regionable: U)(implicit mapping: ReferenceMapping[U]): Boolean = {
+  def hasRegionsFor[U](regionable: U)(implicit mapping: ReferenceMapping[U]): Boolean = {
     val region = mapping.getReferenceRegion(regionable)
     !(region.end <= endpoints.head || region.start >= endpoints.last)
   }
@@ -334,10 +351,7 @@ class MultiContigNonoverlappingRegions(seqDict: SequenceDictionary, regions: Seq
     "Regions was set to null")
 
   assert(!regions.map(_._1).exists(!seqDict.containsRefId(_)),
-  "SeqDict doesn't contain a refId for %s from the regions sequence"
-    .format(regions.map(_._1)
-      .filterNot(seqDict.containsRefId)
-      .mkString(",")))
+    "SeqDict doesn't contain a refId from the regions sequence")
 
   val regionMap : Map[Int,NonoverlappingRegions] =
     Map(regions.map(r => (r._1, new NonoverlappingRegions(seqDict, r._2))): _*)
@@ -351,7 +365,7 @@ class MultiContigNonoverlappingRegions(seqDict: SequenceDictionary, regions: Seq
   def filter[U](value: U)(implicit mapping: ReferenceMapping[U]): Boolean =
     regionMap.get(mapping.getReferenceId(value)) match {
       case None => false
-      case Some(nr) => nr.filter(value)
+      case Some(nr) => nr.hasRegionsFor(value)
     }
 }
 

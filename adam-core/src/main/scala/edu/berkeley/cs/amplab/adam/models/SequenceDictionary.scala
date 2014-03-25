@@ -15,7 +15,7 @@
  */
 package edu.berkeley.cs.amplab.adam.models
 
-import edu.berkeley.cs.amplab.adam.avro.{ADAMSequenceRecord, ADAMRecord, ADAMNucleotideContig}
+import edu.berkeley.cs.amplab.adam.avro.{ADAMSequenceRecord, ADAMRecord, ADAMNucleotideContigFragment, ADAMContig}
 import edu.berkeley.cs.amplab.adam.rdd.AdamContext._
 import net.sf.samtools.{SAMFileHeader, SAMFileReader, SAMSequenceRecord, SAMSequenceDictionary}
 import org.apache.avro.specific.SpecificRecord
@@ -27,7 +27,7 @@ import scala.math.Ordering.Implicits._
  * SequenceDictionary contains the (bijective) map between Ints (the referenceId) and Strings (the referenceName)
  * from the header of a BAM file, or the combined result of multiple such SequenceDictionaries.
  */
-class SequenceDictionary(recordsIn: Iterable[SequenceRecord]) extends Serializable {
+class SequenceDictionary(val recordsIn: Array[SequenceRecord]) extends Serializable {
 
   // Intermediate value used to ensure that no referenceName or referenceId is listed twice with a different
   // referenceId or referenceName (respectively).  Notice the "toSet", which means it's okay to pass an Iterable
@@ -48,13 +48,13 @@ class SequenceDictionary(recordsIn: Iterable[SequenceRecord]) extends Serializab
   }
 
   // Maps referenceId -> SequenceRecord
-  private val recordIndices: mutable.Map[Int, SequenceRecord] =
+  private lazy val recordIndices: mutable.Map[Int, SequenceRecord] =
     mutable.Map(recordsIn.map {
       rec => (rec.id, rec)
     }.toSeq: _*)
 
   // Maps referenceName -> SequenceRecord
-  private val recordNames: mutable.Map[CharSequence, SequenceRecord] =
+  private lazy val recordNames: mutable.Map[CharSequence, SequenceRecord] =
     mutable.Map(recordsIn.map {
       // Call toString explicitly, since otherwise we were picking up an Avro-specific Utf8 value here,
       // which was making the containsRefName method below fail in a hard-to-understand way.
@@ -71,23 +71,29 @@ class SequenceDictionary(recordsIn: Iterable[SequenceRecord]) extends Serializab
   /**
    * Returns the sequence record associated with a specific contig name.
    *
+   * @throws AssertionError Throws assertion error if sequence corresponding to contig name
+   * is not found.
+   * 
    * @param name Name to search for.
    * @return SequenceRecord associated with this record.
    */
   def apply(name: CharSequence): SequenceRecord = {
     // must explicitly call toString - see note at recordNames creation RE: Avro & Utf8
-    recordNames(name.toString)
+    val rec = recordsIn.find(kv => kv.name.toString == name.toString)
+    
+    assert(rec.isDefined, "Could not find key " + name + " in dictionary.")
+    rec.get
   }
 
   /**
-   * Returns true if this sequence dictionary contains a reference with a specific name.
-   *
-   * @param name Reference name to look for.
-   * @return True if reference is in this dictionary.
-   */
+    * Returns true if this sequence dictionary contains a reference with a specific name.
+    *
+    * @param name Reference name to look for.
+    * @return True if reference is in this dictionary.
+    */
   def containsRefName(name : CharSequence) : Boolean = {
     // must explicitly call toString - see note at recordNames creation RE: Avro & Utf8
-    recordNames.contains(name.toString)
+    !recordsIn.forall(kv => kv.name.toString != name.toString)
   }
 
   /**
@@ -178,7 +184,6 @@ class SequenceDictionary(recordsIn: Iterable[SequenceRecord]) extends Serializab
 
   /**
    * See the note to mapTo, above.
-
    * The results of this remap and mapTo should be to produce a "compatible" dictionary,
    * i.e. for all d1 and d2,
    *
@@ -190,51 +195,38 @@ class SequenceDictionary(recordsIn: Iterable[SequenceRecord]) extends Serializab
    *                    mapTo.
    * @return A new SequenceDictionary with just the referenceIds mapped through the given Map argument.
    */
-  def remap(idTransform: Map[Int, Int]): SequenceDictionary = {
+ def remap(idTransform: Map[Int, Int]): SequenceDictionary = {
     def remapIndex(i: Int): Int =
       if (idTransform.contains(i)) idTransform(i) else i
 
-    SequenceDictionary(idNamePairs.map {
+    new SequenceDictionary(idNamePairs.map {
       case (id, name) =>
         recordIndices(id).withReferenceId(remapIndex(id))
-    }.toSeq: _*)
+    }.toArray)
   }
 
-  def records: Seq[SequenceRecord] = recordIndices.values.toSeq
+  def records: Set[SequenceRecord] = recordIndices.values.toSet
 
-  def +(rec: SequenceRecord): SequenceDictionary =
-    new SequenceDictionary(recordsIn ++ List(rec))
+  private[models] def cleanAndMerge(a1: Array[SequenceRecord],
+                                    a2: Array[SequenceRecord]): Array[SequenceRecord] = {
+    val a2filt = a2.filter(k => !a1.contains(k))
+    
+    a1 ++ a2filt
+  }
 
-  def +=(rec: SequenceRecord): SequenceDictionary = {
-
-    recordIndices.put(rec.id, rec)
-    recordNames.put(rec.name, rec)
-    this
+  def +(record: SequenceRecord): SequenceDictionary = {
+    if (recordsIn.contains(record)) {
+      new SequenceDictionary(recordsIn)
+    } else {
+      new SequenceDictionary(recordsIn :+ record)
+    }
   }
 
   def ++(dict: SequenceDictionary): SequenceDictionary =
-    new SequenceDictionary(recordsIn ++ dict.records)
+    new SequenceDictionary(cleanAndMerge(recordsIn, dict.recordsIn))
 
-  def ++(recs: Seq[SequenceRecord]): SequenceDictionary =
-    recs.foldRight(this)((rec, dict) => dict + rec)
-
-  def ++=(recs: Seq[SequenceRecord]): SequenceDictionary = {
-    recs.foreach {
-      rec => this += rec
-    }
-    this
-  }
-
-  def ++=(dict: SequenceDictionary): SequenceDictionary = {
-    dict.recordIndices.keys.foreach {
-      idx => {
-        val newrec = dict.recordIndices(idx)
-        recordIndices.put(newrec.id, newrec)
-        recordNames.put(newrec.name, newrec)
-      }
-    }
-    this
-  }
+  def ++(recs: Array[SequenceRecord]): SequenceDictionary =
+    new SequenceDictionary(cleanAndMerge(recordsIn, recs))
 
   /**
    * Tests whether two dictionaries are compatible, where "compatible" means that
@@ -287,7 +279,7 @@ class SequenceDictionary(recordsIn: Iterable[SequenceRecord]) extends Serializab
 
 object SequenceDictionary {
 
-  def apply(recordsIn: SequenceRecord*) = new SequenceDictionary(recordsIn)
+  def apply(recordsIn: SequenceRecord*) = new SequenceDictionary(recordsIn.toArray)
 
   private def convertRecord(record: ADAMSequenceRecord): SequenceRecord =
     SequenceRecord(
@@ -326,7 +318,7 @@ object SequenceDictionary {
   def fromVCFHeader(header: VCFHeader): SequenceDictionary = {
     val contigLines: List[VCFContigHeaderLine] = header.getContigLines()
 
-    // map over contig lines, 
+    // map over contig lines,
     apply(contigLines.map(l => {
       val name = l.getID()
       val index = l.getContigIndex()
@@ -378,20 +370,21 @@ object SequenceDictionary {
  * @param name
  * @param length
  * @param url
+ * @param md5
  */
-class SequenceRecord(val id: Int, val name: CharSequence, val length: Long, val url: CharSequence) extends Serializable {
+class SequenceRecord(val id: Int, val name: CharSequence, val length: Long, val url: CharSequence, val md5: CharSequence) extends Serializable {
 
   assert(name != null, "SequenceRecord.name is null")
   assert(name.length > 0, "SequenceRecord.name has length 0")
   assert(length > 0, "SequenceRecord.length <= 0")
 
   def withReferenceId(newId: Int): SequenceRecord =
-    new SequenceRecord(newId, name, length, url)
+    new SequenceRecord(newId, name, length, url, md5)
 
   override def equals(x: Any): Boolean = {
     x match {
       case y: SequenceRecord =>
-        id == y.id && name == y.name && length == y.length && url == y.url
+        id == y.id && name == y.name && length == y.length && url == y.url && md5 == y.md5
       case _ => false
     }
   }
@@ -421,8 +414,9 @@ class SequenceRecord(val id: Int, val name: CharSequence, val length: Long, val 
 
 object SequenceRecord {
 
-  def apply(id: Int, name: CharSequence, length: Long, url: CharSequence = null): SequenceRecord =
-    new SequenceRecord(id, name, length, url)
+  def apply(id: Int, name: CharSequence, length: Long, url: CharSequence = null, md5: CharSequence = null): SequenceRecord =
+    new SequenceRecord(id, name, length, url, md5)
+
 
   /**
    * Converts an ADAM contig into a sequence record.
@@ -430,8 +424,8 @@ object SequenceRecord {
    * @param ctg Contig to convert.
    * @return Contig expressed as a sequence record.
    */
-  def fromADAMContig (ctg: ADAMNucleotideContig): SequenceRecord = {
-    apply(ctg.getContigId, ctg.getContigName, ctg.getSequenceLength, ctg.getUrl)
+  def fromADAMContigFragment (ctg: ADAMNucleotideContigFragment): SequenceRecord = {
+    apply(ctg.getContigId, ctg.getContigName, ctg.getContigLength, ctg.getUrl)
   }
 
   /*
@@ -453,7 +447,7 @@ object SequenceRecord {
    * @param rec The ADAMRecord from which to extract the SequenceRecord entries
    * @return a list of all SequenceRecord entries derivable from this record.
    */
-  def fromADAMRecord(rec: ADAMRecord): Seq[SequenceRecord] = {
+  def fromADAMRecord(rec: ADAMRecord): Set[SequenceRecord] = {
 
     assert(rec != null, "ADAMRecord was null")
 
@@ -464,29 +458,29 @@ object SequenceRecord {
 
         val left =
           if (rec.getReadMapped)
-            List(SequenceRecord(rec.getReferenceId, rec.getReferenceName, rec.getReferenceLength, rec.getReferenceUrl))
+            Set(SequenceRecord(rec.getReferenceId, rec.getReferenceName, rec.getReferenceLength, rec.getReferenceUrl))
           else
-            List()
+            Set()
 
         val right =
           if (rec.getMateMapped)
-            List(SequenceRecord(rec.getMateReferenceId, rec.getMateReference, rec.getMateReferenceLength, rec.getMateReferenceUrl))
+            Set(SequenceRecord(rec.getMateReferenceId, rec.getMateReference, rec.getMateReferenceLength, rec.getMateReferenceUrl))
           else
-            List()
+            Set()
 
         left ++ right
 
       } else {
-        List()
+        Set()
       }
 
     } else {
 
       if (rec.getReadMapped) {
-        List(SequenceRecord(rec.getReferenceId, rec.getReferenceName, rec.getReferenceLength, rec.getReferenceUrl))
+        Set(SequenceRecord(rec.getReferenceId, rec.getReferenceName, rec.getReferenceLength, rec.getReferenceUrl))
       } else {
         // If the read isn't mapped, then ignore the fields altogether.
-        List()
+        Set()
       }
     }
   }
@@ -494,13 +488,25 @@ object SequenceRecord {
   def fromSpecificRecord(rec: SpecificRecord): SequenceRecord = {
 
     val schema = rec.getSchema
-
-    new SequenceRecord(
-      rec.get(schema.getField("referenceId").pos()).asInstanceOf[Int],
-      rec.get(schema.getField("referenceName").pos()).asInstanceOf[CharSequence],
-      rec.get(schema.getField("referenceLength").pos()).asInstanceOf[Long],
-      rec.get(schema.getField("referenceUrl").pos()).asInstanceOf[CharSequence])
-
+    if (schema.getField("referenceId") != null) {
+      new SequenceRecord(
+        rec.get(schema.getField("referenceId").pos()).asInstanceOf[Int],
+        rec.get(schema.getField("referenceName").pos()).asInstanceOf[CharSequence],
+        rec.get(schema.getField("referenceLength").pos()).asInstanceOf[Long],
+        rec.get(schema.getField("referenceUrl").pos()).asInstanceOf[CharSequence],
+        null)
+    } else if (schema.getField("contig") != null) {
+      val pos = schema.getField("contig").pos()
+      val contig = rec.get(pos).asInstanceOf[ADAMContig]
+      val contigSchema = contig.getSchema
+      new SequenceRecord(
+        contig.get(contigSchema.getField("contigId").pos()).asInstanceOf[Int],
+        contig.get(contigSchema.getField("contigName").pos()).asInstanceOf[CharSequence],
+        contig.get(contigSchema.getField("contigLength").pos()).asInstanceOf[Long],
+        contig.get(contigSchema.getField("referenceURL").pos()).asInstanceOf[CharSequence],
+        contig.get(contigSchema.getField("contigMD5").pos()).asInstanceOf[CharSequence])
+    } else {
+      null
+    }
   }
-
 }

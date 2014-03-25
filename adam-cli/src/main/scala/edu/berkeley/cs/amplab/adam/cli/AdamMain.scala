@@ -17,6 +17,7 @@ package edu.berkeley.cs.amplab.adam.cli
 
 import org.apache.spark.Logging
 import scala.Some
+import edu.berkeley.cs.amplab.adam.cli.VcfAnnotation2Adam
 
 object AdamMain extends Logging {
 
@@ -30,13 +31,19 @@ object AdamMain extends Logging {
     PileupAggregator,
     ListDict,
     CompareAdam,
-    ComputeVariants,
+    /* TODO (nealsid): Reimplement in terms of new schema
+    ComputeVariants, 
+     */
     Bam2Adam,
     Adam2Vcf,
     Vcf2Adam,
     FindReads,
     Fasta2Adam,
-    PluginExecutor)
+    PluginExecutor,
+    BuildInformation,
+    VcfAnnotation2Adam,
+    SummarizeGenotypes,
+    BuildInformation)
 
   private def printCommands() {
     println("\n")
