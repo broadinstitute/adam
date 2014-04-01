@@ -73,7 +73,7 @@ class Vcf2FlatGenotype(args: Vcf2FlatGenotypeArgs) extends AdamCommand {
       VCFLineConverter.convert(vcfLine).foreach(parquetWriter.write)
 
       if (i % 1000000 == 0) {
-        println("***** Read %d million lines from VCF file (queue=%d) *****".format(i / 1000000))
+        println("***** Read %d million lines from VCF file *****".format(i / 1000000))
       }
     }
 
