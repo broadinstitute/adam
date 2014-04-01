@@ -99,20 +99,16 @@ class VCFLine(vcfLine : String, val samples : Array[String]) {
 object VCFLineConverter {
 
   def convert(line : VCFLine) : Seq[ADAMFlatGenotype] = {
-
-    val baseBuilder = ADAMFlatGenotype.newBuilder()
-      .setReferenceName(line.referenceName)
-      .setPosition(line.position)
-      .setReferenceAllele(line.ref)
-
-
     def buildGenotype(i : Int): ADAMFlatGenotype = {
       val sampleFieldMap = line.sampleFields(i)
       val gts = sampleFieldMap("GT").split("\\||/").map(_.toInt)
       val genotypes : Seq[CharSequence] = gts.map(line.alleleArray(_))
       val sampleId = line.samples(i)
 
-      val flatGenotype = ADAMFlatGenotype.newBuilder(baseBuilder)
+      val flatGenotype = ADAMFlatGenotype.newBuilder()
+        .setReferenceName(line.referenceName)
+        .setPosition(line.position)
+        .setReferenceAllele(line.ref)
         .setSampleId(sampleId)
         .setAlleles(genotypes)
         .build()
