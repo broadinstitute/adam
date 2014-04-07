@@ -13,13 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package edu.berkeley.cs.amplab.adam.converters
-
-import edu.berkeley.cs.amplab.adam.avro.ADAMFlatGenotype
+package org.bdgenomics.adam.converters
 
 import java.io._
 
 import scala.collection.JavaConversions._
+import org.bdgenomics.adam.avro.ADAMFlatGenotype
 
 
 class VCFLineParser(inputStream : InputStream) extends Iterator[VCFLine] {

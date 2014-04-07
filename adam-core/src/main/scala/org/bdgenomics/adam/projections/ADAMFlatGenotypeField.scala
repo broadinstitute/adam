@@ -13,9 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package edu.berkeley.cs.amplab.adam.projections
+package org.bdgenomics.adam.projections
 
-import edu.berkeley.cs.amplab.adam.avro.ADAMFlatGenotype
+import org.bdgenomics.adam.avro.ADAMFlatGenotype
 
 object ADAMFlatGenotypeField extends FieldEnumeration(ADAMFlatGenotype.SCHEMA$) {
 

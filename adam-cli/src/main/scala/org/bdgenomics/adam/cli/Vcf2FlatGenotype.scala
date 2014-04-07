@@ -13,12 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package edu.berkeley.cs.amplab.adam.cli
+package org.bdgenomics.adam.cli
 
-import edu.berkeley.cs.amplab.adam.util.ParquetLogger
+import org.bdgenomics.adam.util.ParquetLogger
 import org.kohsuke.args4j.{Option => Args4jOption, Argument}
 import net.sf.samtools._
-import edu.berkeley.cs.amplab.adam.avro.{ADAMFlatGenotype, ADAMRecord}
 import scala.collection.JavaConversions._
 import java.io.{FileInputStream, File}
 import parquet.avro.AvroParquetWriter
@@ -26,14 +25,16 @@ import org.apache.hadoop.fs.Path
 import java.util.concurrent._
 import scala.Some
 import java.util.logging.Level
-import edu.berkeley.cs.amplab.adam.models.{RecordGroupDictionary, SequenceDictionary}
-import edu.berkeley.cs.amplab.adam.converters.{VCFLineParser, VCFLineConverter, VCFLine, SAMRecordConverter}
+import org.bdgenomics.adam.cli.{Args4jBase, Args4j}
+import org.bdgenomics.adam.util.ParquetLogger
+import org.bdgenomics.adam.avro.ADAMFlatGenotype
+import org.bdgenomics.adam.converters.{VCFLineConverter, VCFLineParser}
 
-object Vcf2FlatGenotype extends AdamCommandCompanion {
+object Vcf2FlatGenotype extends ADAMCommandCompanion {
   val commandName: String = "vcf2fgenotype"
   val commandDescription: String = "Single-node VCF to ADAM converter (Note: the 'transform' command can take SAM or BAM as input)"
 
-  def apply(cmdLine: Array[String]): AdamCommand = {
+  def apply(cmdLine: Array[String]): ADAMCommand = {
     new Vcf2FlatGenotype(Args4j[Vcf2FlatGenotypeArgs](cmdLine))
   }
 }
@@ -51,7 +52,7 @@ class Vcf2FlatGenotypeArgs extends Args4jBase with ParquetArgs {
   var qSize = 10000
 }
 
-class Vcf2FlatGenotype(args: Vcf2FlatGenotypeArgs) extends AdamCommand {
+class Vcf2FlatGenotype(args: Vcf2FlatGenotypeArgs) extends ADAMCommand {
   val companion = Vcf2FlatGenotype
 
   def run() = {

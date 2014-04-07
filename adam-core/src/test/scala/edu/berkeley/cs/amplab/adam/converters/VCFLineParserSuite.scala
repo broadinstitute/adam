@@ -16,6 +16,7 @@
 package edu.berkeley.cs.amplab.adam.converters
 
 import org.scalatest.FunSuite
+import org.bdgenomics.adam.converters.{VCFLineConverter, VCFLineParser}
 
 class VCFLineParserSuite extends FunSuite {
 
