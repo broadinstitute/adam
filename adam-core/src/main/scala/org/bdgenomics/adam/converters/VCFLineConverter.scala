@@ -21,11 +21,12 @@ import scala.collection.JavaConversions._
 import org.bdgenomics.adam.avro.ADAMFlatGenotype
 
 
-class VCFLineParser(inputStream : InputStream) extends Iterator[VCFLine] {
+class VCFLineParser(inputStream : InputStream, sampleSubset : Option[Set[String]] = None) extends Iterator[VCFLine] {
 
   val reader = new BufferedReader(new InputStreamReader(inputStream))
   var nextLine : VCFLine = null
   var samples : Array[String] = null
+  var sampleIndices : Seq[Int] = null
 
   findNextLine()
 
@@ -37,13 +38,22 @@ class VCFLineParser(inputStream : InputStream) extends Iterator[VCFLine] {
       if(readLine.startsWith("#CHROM")) {
         val array = readLine.split("\t")
         samples = array.slice(9, array.length)
+
+        sampleIndices =
+          if(sampleSubset.isDefined) {
+            (0 until samples.length).filter {
+              i => sampleSubset.get.contains(samples(i))
+            }
+          } else {
+            0 until samples.length
+          }
       }
 
       readLine = reader.readLine()
     }
 
     if(readLine != null) {
-      nextLine = new VCFLine(readLine, samples)
+      nextLine = new VCFLine(readLine, samples, sampleIndices)
     }
   }
 
@@ -58,7 +68,7 @@ class VCFLineParser(inputStream : InputStream) extends Iterator[VCFLine] {
   def close() { reader.close() }
 }
 
-class VCFLine(vcfLine : String, val samples : Array[String]) {
+class VCFLine(vcfLine : String, val samples : Array[String], sampleIndices : Seq[Int]) {
 
   private val array = vcfLine.split("\t")
 
@@ -90,8 +100,8 @@ class VCFLine(vcfLine : String, val samples : Array[String]) {
   val alleleArray = ref :: alts
 
   val sampleFields =
-    for(i <- 9 until array.length)
-      yield format.zip(array(i).split(":")).toMap
+    for(i <- sampleIndices)
+      yield format.zip(array(9+i).split(":")).toMap
 
 }
 

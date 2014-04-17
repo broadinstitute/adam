@@ -46,6 +46,8 @@ class Vcf2FlatGenotypeArgs extends Args4jBase with ParquetArgs {
   var outputPath: String = null
   @Args4jOption(required = false, name = "-samtools_validation", usage = "SAM tools validation level")
   var validationStringency = SAMFileReader.ValidationStringency.LENIENT
+  @Args4jOption(required = false, name = "-samples", usage = "Comma-separated set of samples to subset")
+  var sampleSubset : String = null
   @Args4jOption(required = false, name = "-num_threads", usage = "Number of threads/partitions to use (default=4)")
   var numThreads = 4
   @Args4jOption(required = false, name = "-queue_size", usage = "Queue size (default = 10,000)")
@@ -60,7 +62,14 @@ class Vcf2FlatGenotype(args: Vcf2FlatGenotypeArgs) extends ADAMCommand {
     // Quiet parquet...
     ParquetLogger.hadoopLoggerLevel(Level.SEVERE)
 
-    val vcfReader = new VCFLineParser(new FileInputStream(new File(args.bamFile)))
+    val sampleSubset : Option[Set[String]] =
+      if (args.sampleSubset != null) {
+        Some(args.sampleSubset.split(",").toSet)
+      } else {
+        None
+      }
+
+    val vcfReader = new VCFLineParser(new FileInputStream(new File(args.bamFile)), sampleSubset)
 
     val parquetWriter = new AvroParquetWriter[ADAMFlatGenotype](
       new Path(args.outputPath),
