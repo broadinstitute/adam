@@ -75,19 +75,15 @@ class ParquetPartition(val index: Int,
     assert(reader.getClass.getName == "parquet.io.FilteredRecordReader", "class name %s wasn't FilteredRecordReader".format(reader.getClass.getName))
 
     new Iterator[T] {
-      val rowCount: Long = rowGroup.rowCount
-      var count: Long = 0
+      var nextT: T = reader.read()
 
       override def next(): T = {
-        if (count < rowCount) {
-          count += 1L
-          reader.read()
-        } else {
-          throw new ArrayIndexOutOfBoundsException("Went over end of iterator. Make sure to call hasNext first.")
-        }
+        val ret = nextT
+        nextT = reader.read()
+        ret
       }
 
-      override def hasNext: Boolean = count < rowCount
+      override def hasNext: Boolean = nextT != null
     }
   }
 }
