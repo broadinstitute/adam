@@ -32,7 +32,7 @@ import parquet.filter.ColumnPredicates._
 import scala.Some
 
 class S3AvroParquetRDDSuite extends SparkFunSuite {
-  ignore("Try pulling out a coupla records from a parquet file") {
+  sparkTest("Try pulling out a coupla records from a parquet file") {
     val rdd = new S3AvroParquetRDD[ADAMRecord](
       sc,
       null,
@@ -48,7 +48,7 @@ class S3AvroParquetRDDSuite extends SparkFunSuite {
     assert(rdd.count() === 51)
   }
 
-  ignore("Using a projection works") {
+  sparkTest("Using a projection works") {
 
     import org.bdgenomics.adam.projections.ADAMRecordField._
 
@@ -97,13 +97,13 @@ class S3AvroParquetRDDSuite extends SparkFunSuite {
 class ReadNameFilter(value: String) extends UnboundRecordFilter with Serializable {
 
   def bind(readers: Iterable[ColumnReader]): RecordFilter = {
-    println("Bind: " + readers.map(cr => cr.getDescriptor.getPath.mkString(".")).mkString(","))
-    Thread.dumpStack()
+    //println("Bind: " + readers.map(cr => cr.getDescriptor.getPath.mkString(".")).mkString(","))
+    //Thread.dumpStack()
     val reader = readers.find(_.getDescriptor.getPath.last == "readName").get
     new RecordFilter() {
       def isMatch: Boolean = {
         val mtch = reader.getBinary.toStringUsingUTF8 == value
-        println("%s -> %s".format(reader.getBinary.toStringUsingUTF8, mtch))
+        //println("%s -> %s".format(reader.getBinary.toStringUsingUTF8, mtch))
         mtch
       }
     }

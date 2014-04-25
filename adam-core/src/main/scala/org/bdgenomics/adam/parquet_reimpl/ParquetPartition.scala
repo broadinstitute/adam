@@ -50,8 +50,6 @@ class ParquetPartition(val index: Int,
                             recordMaterializer: RecordMaterializer[T],
                             filter: UnboundRecordFilter): Iterator[T] = {
 
-    assert(filter != null, "filter was null")
-
     val requestedPaths = requestedSchema.paths()
 
     val requestedColumnChunks: Seq[ParquetColumnChunk] = rowGroup.columnChunks.filter {
@@ -71,8 +69,6 @@ class ParquetPartition(val index: Int,
     val columnIOFactory: ColumnIOFactory = new ColumnIOFactory
     val columnIO = columnIOFactory.getColumnIO(requestedSchema.convertToParquet(), actualSchema.convertToParquet())
     val reader = columnIO.getRecordReader[T](pageReadStore, recordMaterializer, filter)
-
-    assert(reader.getClass.getName == "parquet.io.FilteredRecordReader", "class name %s wasn't FilteredRecordReader".format(reader.getClass.getName))
 
     new Iterator[T] {
       var nextT: T = reader.read()

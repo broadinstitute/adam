@@ -63,10 +63,12 @@ package org.bdgenomics.adam.parquet_reimpl {
       val requestedMessage = convertAvroSchema(requestedSchema, fileMessageType)
       val requested = new ParquetSchemaType(requestedMessage)
 
+      /*
       println("Requested Schema: \n" + requestedSchema)
       println("Requested MessageType: \n" + requestedMessage.toString)
       println("Requested: \n" + requested.toString)
       println("Actual: \n" + fileSchema.toString)
+      */
 
       footer.rowGroups.zipWithIndex.map {
         case (rg, i) => new ParquetPartition(i, rg, requested, fileSchema)
