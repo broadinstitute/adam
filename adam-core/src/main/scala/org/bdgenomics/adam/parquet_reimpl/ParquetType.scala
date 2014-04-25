@@ -81,8 +81,33 @@ object PrimitiveType extends Enumeration {
   def apply(typ: PrimitiveTypeName): Value = withName(typ.toString)
 }
 
-case class ParquetPrimitiveType(name: String, repetition: Repetition.Value, length: Option[Int], primitiveType: PrimitiveType.Value) extends ParquetType {
-  def this(pType: PrimitiveType) = this(pType.getName, Repetition(pType.getRepetition), Option(pType.getTypeLength), PrimitiveType(pType.getPrimitiveTypeName))
+object ParquetOriginalType extends Enumeration {
+  val MAP, LIST, UTF8, MAP_KEY_VALUE, ENUM = Value
+
+  def toParquetOriginalType(typ: Value): OriginalType =
+    typ match {
+      case null     => null
+      case t: Value => OriginalType.valueOf(typ.toString)
+    }
+
+  def apply(typ: OriginalType): Value =
+    typ match {
+      case null            => null
+      case t: OriginalType => withName(typ.toString)
+    }
+}
+
+case class ParquetPrimitiveType(name: String, repetition: Repetition.Value, length: Option[Int],
+                                primitiveType: PrimitiveType.Value, originalType: ParquetOriginalType.Value)
+    extends ParquetType {
+
+  def this(pType: PrimitiveType) = this(
+    pType.getName,
+    Repetition(pType.getRepetition),
+    Option(pType.getTypeLength),
+    PrimitiveType(pType.getPrimitiveTypeName),
+    ParquetOriginalType(pType.getOriginalType))
+
   def paths(): Seq[TypePath] = Seq(new TypePath(name))
   def lookup(path: TypePath): Option[ParquetType] =
     if (path.suffix.isDefined) {
@@ -96,7 +121,9 @@ case class ParquetPrimitiveType(name: String, repetition: Repetition.Value, leng
   def convertToParquet(): PrimitiveType = {
     val pRep = Type.Repetition.valueOf(repetition.toString)
     val pType = PrimitiveTypeName.valueOf(primitiveType.toString)
-    new PrimitiveType(pRep, pType, length.getOrElse(0), name)
+    val original = ParquetOriginalType.toParquetOriginalType(originalType)
+
+    new PrimitiveType(pRep, pType, length.getOrElse(0), name, original)
   }
 }
 

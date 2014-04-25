@@ -31,8 +31,8 @@ class S3AvroParquetRDDSuite extends SparkFunSuite {
 
     val value = rdd.first()
     assert(value != null)
-    assert(value.getReadName === "foo")
+    assert(value.getReadName === "simread:1:189606653:true")
 
-    assert(rdd.count() === 430010)
+    assert(rdd.count() === 51)
   }
 }
