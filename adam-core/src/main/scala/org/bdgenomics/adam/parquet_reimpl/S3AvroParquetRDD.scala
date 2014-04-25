@@ -60,8 +60,11 @@ package org.bdgenomics.adam.parquet_reimpl {
       val footer = new Footer(fileMetadata)
       val fileMessageType = ParquetCommon.parseMessageType(fileMetadata)
       val fileSchema = new ParquetSchemaType(fileMessageType)
-      val requested = new ParquetSchemaType(convertAvroSchema(requestedSchema, fileMessageType))
+      val requestedMessage = convertAvroSchema(requestedSchema, fileMessageType)
+      val requested = new ParquetSchemaType(requestedMessage)
 
+      println("Requested Schema: \n" + requestedSchema)
+      println("Requested MessageType: \n" + requestedMessage.toString)
       println("Requested: \n" + requested.toString)
       println("Actual: \n" + fileSchema.toString)
 
@@ -75,9 +78,11 @@ package org.bdgenomics.adam.parquet_reimpl {
       val byteAccess = io()
       val parquetPartition = split.asInstanceOf[ParquetPartition]
       def requestedMessageType = parquetPartition.requestedSchema.convertToParquet()
-      val requestedSchema = new AvroSchemaConverter().convert(requestedMessageType)
 
-      val avroRecordMaterializer = new UsableAvroRecordMaterializer[T](requestedMessageType, requestedSchema)
+      //val reqSchema = new AvroSchemaConverter().convert(requestedMessageType)
+      val reqSchema = new AvroSchemaConverter().convert(parquetPartition.actualSchema.convertToParquet())
+
+      val avroRecordMaterializer = new UsableAvroRecordMaterializer[T](requestedMessageType, reqSchema)
 
       parquetPartition.materializeRecords(config.value, byteAccess, avroRecordMaterializer, filter)
     }

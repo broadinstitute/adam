@@ -143,21 +143,22 @@ abstract class ParquetAggregateType(val name: String, val repetition: Repetition
   def lookup(path: TypePath): Option[ParquetType] =
     if (path.head != name) {
       None
-    } else
+    } else {
       path.suffix match {
         case None         => Some(this)
         case Some(suffix) => fieldMap.get(suffix.head).flatMap(_.lookup(suffix))
       }
-
-  def convertToParquet(): GroupType = {
-    val pRep = Type.Repetition.valueOf(repetition.toString)
-    new GroupType(pRep, name, fields.map(_.convertToParquet()).toList)
-  }
+    }
 }
 
 case class ParquetGroupType(groupName: String, groupRepetition: Repetition.Value, groupFields: Seq[ParquetType]) extends ParquetAggregateType(groupName, groupRepetition, groupFields) {
 
   def this(pType: GroupType) = this(pType.getName, Repetition(pType.getRepetition), pType.getFields.map(f => ParquetType.convertFromType(f)))
+
+  def convertToParquet(): GroupType = {
+    val pRep = Type.Repetition.valueOf(repetition.toString)
+    new GroupType(pRep, name, fields.map(_.convertToParquet()).toList)
+  }
 }
 
 case class ParquetSchemaType(schemaName: String, schemaFields: Seq[ParquetType]) extends ParquetAggregateType(schemaName, Repetition.REPEATED, schemaFields) {
