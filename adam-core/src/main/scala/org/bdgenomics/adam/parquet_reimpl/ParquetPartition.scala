@@ -51,17 +51,10 @@ class ParquetPartition(val index: Int,
                             filter: UnboundRecordFilter): Iterator[T] = {
 
     val requestedPaths = requestedSchema.paths()
-    println("Requested Paths:")
-    println(requestedPaths)
-    println("Actual Paths:")
-    println(actualSchema.paths())
-    assert(requestedPaths.sameElements(actualSchema.paths()))
 
     val requestedColumnChunks: Seq[ParquetColumnChunk] = rowGroup.columnChunks.filter {
       cc => requestedPaths.contains(TypePath(cc.columnDescriptor.path))
     }
-    println(rowGroup.columnChunks.map(cc => TypePath(cc.columnDescriptor.path)))
-    println(requestedColumnChunks)
 
     assert(config != null, "HadoopConfiguration was null")
 

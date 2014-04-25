@@ -73,9 +73,6 @@ package org.bdgenomics.adam.parquet_reimpl {
       def requestedMessageType = parquetPartition.requestedSchema.convertToParquet()
       val requestedSchema = new AvroSchemaConverter().convert(requestedMessageType)
 
-      println("Requested Avro Schema: ")
-      println(requestedSchema)
-
       val avroRecordMaterializer = new UsableAvroRecordMaterializer[T](requestedMessageType, requestedSchema)
 
       parquetPartition.materializeRecords(config.value, byteAccess, avroRecordMaterializer, filter)
