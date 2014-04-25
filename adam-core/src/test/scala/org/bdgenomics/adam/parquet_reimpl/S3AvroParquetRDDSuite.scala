@@ -19,6 +19,7 @@ import org.bdgenomics.adam.avro.ADAMRecord
 import org.bdgenomics.adam.util.SparkFunSuite
 import com.amazonaws.services.s3.AmazonS3Client
 import org.bdgenomics.adam.parquet_reimpl.S3AvroParquetRDD
+import org.bdgenomics.adam.projections.Projection
 
 class S3AvroParquetRDDSuite extends SparkFunSuite {
   sparkTest("Try pulling out a coupla records from a parquet file") {
@@ -28,6 +29,26 @@ class S3AvroParquetRDDSuite extends SparkFunSuite {
       "genomebridge-variantstore-ci",
       "demo/reads12.adam/part1",
       None)
+
+    val value = rdd.first()
+    assert(value != null)
+    assert(value.getReadName === "simread:1:189606653:true")
+
+    assert(rdd.count() === 51)
+  }
+
+  sparkTest("Using a projection also works") {
+
+    import org.bdgenomics.adam.projections.ADAMRecordField._
+
+    val schema = Projection(referenceName, start, sequence)
+
+    val rdd = new S3AvroParquetRDD[ADAMRecord](
+      sc,
+      null,
+      "genomebridge-variantstore-ci",
+      "demo/reads12.adam/part1",
+      Some(schema))
 
     val value = rdd.first()
     assert(value != null)
