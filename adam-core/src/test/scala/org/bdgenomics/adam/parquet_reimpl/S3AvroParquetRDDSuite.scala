@@ -45,14 +45,14 @@ class S3AvroParquetRDDSuite extends SparkFunSuite {
     assert(value.getReadName === "simread:1:189606653:true")
     assert(value.getStart === 189606653L)
 
-    assert(rdd.count() === 51)
+    assert(rdd.count() === 49)
   }
 
   sparkTest("Using a projection works") {
 
     import org.bdgenomics.adam.projections.ADAMRecordField._
 
-    val schema = Projection(readName, start, sequence)
+    val schema = Projection(readName, start, contig)
 
     val rdd = new S3AvroParquetRDD[ADAMRecord](
       sc,
@@ -66,7 +66,7 @@ class S3AvroParquetRDDSuite extends SparkFunSuite {
     assert(value.getReadName === "simread:1:189606653:true")
     assert(value.getStart === 189606653L)
 
-    assert(rdd.count() === 51)
+    assert(rdd.count() === 49)
   }
 
   sparkTest("Using a filter also works") {

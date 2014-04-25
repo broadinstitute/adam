@@ -25,7 +25,7 @@ package org.bdgenomics.adam.parquet_reimpl {
   import org.apache.avro.Schema
   import org.bdgenomics.adam.rdd._
   import org.apache.avro.generic.IndexedRecord
-  import scala.reflect.ClassTag
+  import scala.reflect._
   import parquet.avro.{ UsableAvroRecordMaterializer, AvroSchemaConverter }
   import parquet.schema.MessageType
 
@@ -68,6 +68,7 @@ package org.bdgenomics.adam.parquet_reimpl {
       println("Requested MessageType: \n" + requestedMessage.toString)
       println("Requested: \n" + requested.toString)
       println("Actual: \n" + fileSchema.toString)
+      println("Original Avro Schema:\n" + new AvroSchemaConverter().convert(fileMessageType))
       */
 
       footer.rowGroups.zipWithIndex.map {
@@ -76,13 +77,14 @@ package org.bdgenomics.adam.parquet_reimpl {
     }
 
     override def compute(split: Partition, context: TaskContext): Iterator[T] = {
-
+      val reqSchema = classTag[T].runtimeClass.newInstance().asInstanceOf[T].getSchema
       val byteAccess = io()
       val parquetPartition = split.asInstanceOf[ParquetPartition]
       def requestedMessageType = parquetPartition.requestedSchema.convertToParquet()
 
       //val reqSchema = new AvroSchemaConverter().convert(requestedMessageType)
-      val reqSchema = new AvroSchemaConverter().convert(parquetPartition.actualSchema.convertToParquet())
+      //val reqSchema = new AvroSchemaConverter().convert(parquetPartition.actualSchema.convertToParquet())
+      //println("Base Avro Schema:\n" + reqSchema)
 
       val avroRecordMaterializer = new UsableAvroRecordMaterializer[T](requestedMessageType, reqSchema)
 
