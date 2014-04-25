@@ -79,9 +79,15 @@ class FieldEnumerationSuite extends SparkFunSuite with BeforeAndAfter {
 
     val first1 = reads1.first()
     assert(first1.getReadName === "simread:1:26472783:false")
-    assert(first1.getReadMapped === null)
 
-    val p2 = Projection(ADAMRecordField.readName, ADAMRecordField.readMapped)
+    // Can no longer (with Parquet 1.4.0+) test a boolean value, since 'false' is apparently
+    // the new default value?
+    //assert(first1.getReadMapped === null)
+
+    // ... so we'll test the Cigar string instead.
+    assert(first1.getCigar === null)
+
+    val p2 = Projection(ADAMRecordField.readName, ADAMRecordField.readMapped, ADAMRecordField.cigar)
 
     val reads2: RDD[ADAMRecord] = sc.adamLoad(readsParquetFile.getAbsolutePath, projection = Some(p2))
 
@@ -90,5 +96,6 @@ class FieldEnumerationSuite extends SparkFunSuite with BeforeAndAfter {
     val first2 = reads2.first()
     assert(first2.getReadName === "simread:1:26472783:false")
     assert(first2.getReadMapped === true)
+    assert(first2.getCigar === "75M")
   }
 }
