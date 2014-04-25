@@ -16,19 +16,19 @@
 package org.bdgenomics.adam.cli
 
 import org.bdgenomics.adam.util.ParquetLogger
-import org.kohsuke.args4j.{Option => Args4jOption, Argument}
+import org.kohsuke.args4j.{ Option => Args4jOption, Argument }
 import net.sf.samtools._
 import scala.collection.JavaConversions._
-import java.io.{FileInputStream, File}
+import java.io.{ FileInputStream, File }
 import parquet.avro.AvroParquetWriter
 import org.apache.hadoop.fs.Path
 import java.util.concurrent._
 import scala.Some
 import java.util.logging.Level
-import org.bdgenomics.adam.cli.{Args4jBase, Args4j}
+import org.bdgenomics.adam.cli.{ Args4jBase, Args4j }
 import org.bdgenomics.adam.util.ParquetLogger
 import org.bdgenomics.adam.avro.ADAMFlatGenotype
-import org.bdgenomics.adam.converters.{VCFLineConverter, VCFLineParser}
+import org.bdgenomics.adam.converters.{ VCFLineConverter, VCFLineParser }
 
 object Vcf2FlatGenotype extends ADAMCommandCompanion {
   val commandName: String = "vcf2fgenotype"
@@ -47,7 +47,7 @@ class Vcf2FlatGenotypeArgs extends Args4jBase with ParquetArgs {
   @Args4jOption(required = false, name = "-samtools_validation", usage = "SAM tools validation level")
   var validationStringency = SAMFileReader.ValidationStringency.LENIENT
   @Args4jOption(required = false, name = "-samples", usage = "Comma-separated set of samples to subset")
-  var sampleSubset : String = null
+  var sampleSubset: String = null
   @Args4jOption(required = false, name = "-num_threads", usage = "Number of threads/partitions to use (default=4)")
   var numThreads = 4
   @Args4jOption(required = false, name = "-queue_size", usage = "Queue size (default = 10,000)")
@@ -62,7 +62,7 @@ class Vcf2FlatGenotype(args: Vcf2FlatGenotypeArgs) extends ADAMCommand {
     // Quiet parquet...
     ParquetLogger.hadoopLoggerLevel(Level.SEVERE)
 
-    val sampleSubset : Option[Set[String]] =
+    val sampleSubset: Option[Set[String]] =
       if (args.sampleSubset != null) {
         Some(args.sampleSubset.split(",").toSet)
       } else {

@@ -20,27 +20,26 @@ import java.io._
 import scala.collection.JavaConversions._
 import org.bdgenomics.adam.avro.ADAMFlatGenotype
 
-
-class VCFLineParser(inputStream : InputStream, sampleSubset : Option[Set[String]] = None) extends Iterator[VCFLine] {
+class VCFLineParser(inputStream: InputStream, sampleSubset: Option[Set[String]] = None) extends Iterator[VCFLine] {
 
   val reader = new BufferedReader(new InputStreamReader(inputStream))
-  var nextLine : VCFLine = null
-  var samples : Array[String] = null
-  var sampleIndices : Seq[Int] = null
+  var nextLine: VCFLine = null
+  var samples: Array[String] = null
+  var sampleIndices: Seq[Int] = null
 
   findNextLine()
 
   private def findNextLine() {
     nextLine = null
 
-    var readLine :String = reader.readLine()
-    while(readLine != null && readLine.startsWith("#")) {
-      if(readLine.startsWith("#CHROM")) {
+    var readLine: String = reader.readLine()
+    while (readLine != null && readLine.startsWith("#")) {
+      if (readLine.startsWith("#CHROM")) {
         val array = readLine.split("\t")
         samples = array.slice(9, array.length)
 
         sampleIndices =
-          if(sampleSubset.isDefined) {
+          if (sampleSubset.isDefined) {
             (0 until samples.length).filter {
               i => sampleSubset.get.contains(samples(i))
             }
@@ -52,12 +51,12 @@ class VCFLineParser(inputStream : InputStream, sampleSubset : Option[Set[String]
       readLine = reader.readLine()
     }
 
-    if(readLine != null) {
+    if (readLine != null) {
       nextLine = new VCFLine(readLine, samples, sampleIndices)
     }
   }
 
-  def next(): VCFLine =  {
+  def next(): VCFLine = {
     val retLine = nextLine
     findNextLine()
     retLine
@@ -68,7 +67,7 @@ class VCFLineParser(inputStream : InputStream, sampleSubset : Option[Set[String]
   def close() { reader.close() }
 }
 
-class VCFLine(vcfLine : String, val samples : Array[String], sampleIndices : Seq[Int]) {
+class VCFLine(vcfLine: String, val samples: Array[String], sampleIndices: Seq[Int]) {
 
   private val array = vcfLine.split("\t")
 
@@ -78,40 +77,41 @@ class VCFLine(vcfLine : String, val samples : Array[String], sampleIndices : Seq
   val position = array(1).toInt
   val id = array(2)
   val ref = array(3)
-  val alts : List[CharSequence] = array(4).split(",").toList
+  val alts: List[CharSequence] = array(4).split(",").toList
   val qual = array(5) match {
-    case "." => null
-    case x : CharSequence => x.toDouble
+    case "."             => null
+    case x: CharSequence => x.toDouble
   }
   val filter = array(6)
 
   val info = array(7).split(";").map {
-    keyValue => {
-      if(keyValue.indexOf("=") != -1) {
-        val kvArr = keyValue.split("=")
-        kvArr(0) -> kvArr(1)
-      } else {
-        keyValue -> null
+    keyValue =>
+      {
+        if (keyValue.indexOf("=") != -1) {
+          val kvArr = keyValue.split("=")
+          kvArr(0) -> kvArr(1)
+        } else {
+          keyValue -> null
+        }
       }
-    }
   }.toMap
 
   val format = array(8).split(":")
   val alleleArray = ref :: alts
 
   val sampleFields =
-    for(i <- sampleIndices)
-      yield format.zip(array(9+i).split(":")).toMap
+    for (i <- sampleIndices)
+      yield format.zip(array(9 + i).split(":")).toMap
 
 }
 
 object VCFLineConverter {
 
-  def convert(line : VCFLine) : Seq[ADAMFlatGenotype] = {
-    def buildGenotype(i : Int): ADAMFlatGenotype = {
+  def convert(line: VCFLine): Seq[ADAMFlatGenotype] = {
+    def buildGenotype(i: Int): ADAMFlatGenotype = {
       val sampleFieldMap = line.sampleFields(i)
       val gts = sampleFieldMap("GT").split("\\||/").map(_.toInt)
-      val genotypes : Seq[CharSequence] = gts.map(line.alleleArray(_))
+      val genotypes: Seq[CharSequence] = gts.map(line.alleleArray(_))
       val sampleId = line.samples(i)
 
       val flatGenotype = ADAMFlatGenotype.newBuilder()
@@ -126,12 +126,10 @@ object VCFLineConverter {
     }
 
     val genotypes =
-      for(i <- 0 until line.samples.length)
+      for (i <- 0 until line.samples.length)
         yield buildGenotype(i)
-
 
     genotypes
   }
-
 
 }

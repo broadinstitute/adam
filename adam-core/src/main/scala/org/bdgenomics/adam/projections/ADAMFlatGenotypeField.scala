@@ -19,13 +19,5 @@ import org.bdgenomics.adam.avro.ADAMFlatGenotype
 
 object ADAMFlatGenotypeField extends FieldEnumeration(ADAMFlatGenotype.SCHEMA$) {
 
-  val referenceName,
-  referenceAllele,
-  alleles,
-  genotypeLikelihoods,
-  alleleDepths,
-  readDepth,
-  genotypeQuality,
-  sampleId,
-  position = SchemaValue
+  val referenceName, referenceAllele, alleles, genotypeLikelihoods, alleleDepths, readDepth, genotypeQuality, sampleId, position = SchemaValue
 }

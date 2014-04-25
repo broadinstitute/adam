@@ -16,7 +16,7 @@
 package edu.berkeley.cs.amplab.adam.converters
 
 import org.scalatest.FunSuite
-import org.bdgenomics.adam.converters.{VCFLineConverter, VCFLineParser}
+import org.bdgenomics.adam.converters.{ VCFLineConverter, VCFLineParser }
 
 class VCFLineParserSuite extends FunSuite {
 
@@ -26,6 +26,5 @@ class VCFLineParserSuite extends FunSuite {
     val fgenotypes = parser.flatMap(VCFLineConverter.convert)
     assert(fgenotypes.length === 15)
   }
-
 
 }
