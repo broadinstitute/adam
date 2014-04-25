@@ -71,15 +71,22 @@ class ParquetPartition(val index: Int,
     val reader = columnIO.getRecordReader[T](pageReadStore, recordMaterializer, filter)
 
     new Iterator[T] {
-      var nextT: T = reader.read()
+      var recordsRead = 0
+      val totalRecords = rowGroup.rowCount
+      var nextT: Option[T] = Option(reader.read())
 
       override def next(): T = {
         val ret = nextT
-        nextT = reader.read()
-        ret
+        recordsRead += 1
+        if (recordsRead >= totalRecords) {
+          nextT = None
+        } else {
+          nextT = Option(reader.read())
+        }
+        ret.getOrElse(null.asInstanceOf[T])
       }
 
-      override def hasNext: Boolean = nextT != null
+      override def hasNext: Boolean = nextT.isDefined
     }
   }
 }
