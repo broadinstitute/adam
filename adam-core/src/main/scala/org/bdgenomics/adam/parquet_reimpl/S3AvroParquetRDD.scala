@@ -43,10 +43,11 @@ package org.bdgenomics.adam.parquet_reimpl {
 
     val config = sc.broadcast(sc.hadoopConfiguration)
 
-    def convertAvroSchema(schema: Option[Schema], fileMessageType: MessageType): MessageType = {
-      val converter: AvroSchemaConverter = new AvroSchemaConverter()
-      schema.map(s => converter.convert(s)).getOrElse(fileMessageType)
-    }
+    def convertAvroSchema(schema: Option[Schema], fileMessageType: MessageType): MessageType =
+      schema match {
+        case None    => fileMessageType
+        case Some(s) => new AvroSchemaConverter().convert(s)
+      }
 
     def io(): ByteAccess = {
       val s3client = new AmazonS3Client()
@@ -60,6 +61,9 @@ package org.bdgenomics.adam.parquet_reimpl {
       val fileMessageType = ParquetCommon.parseMessageType(fileMetadata)
       val fileSchema = new ParquetSchemaType(fileMessageType)
       val requested = new ParquetSchemaType(convertAvroSchema(requestedSchema, fileMessageType))
+
+      println("Requested: \n" + requested.toString)
+      println("Actual: \n" + fileSchema.toString)
 
       footer.rowGroups.zipWithIndex.map {
         case (rg, i) => new ParquetPartition(i, rg, requested, fileSchema)
