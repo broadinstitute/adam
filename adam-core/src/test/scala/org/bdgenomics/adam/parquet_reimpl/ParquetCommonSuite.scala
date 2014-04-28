@@ -34,13 +34,13 @@ class ParquetCommonSuite extends FunSuite {
   }
 
   test("Testing S3 byte access") {
-    val byteAccess = new S3ByteAccess(new AmazonS3Client(), "genomebridge-variantstore-ci", "data/flannick/chr10.adam")
+    val byteAccess = new S3ByteAccess(new AmazonS3Client(), "genomebridge-variantstore-ci", "demo/reads12.adam/part0")
     assert(byteAccess.readFully(0, 1)(0) === 80)
   }
 
   test("Reading a footer from S3") {
-    val byteAccess = new S3ByteAccess(new AmazonS3Client(), "genomebridge-variantstore-ci", "data/flannick/chr10.adam")
+    val byteAccess = new S3ByteAccess(new AmazonS3Client(), "genomebridge-variantstore-ci", "demo/reads12.adam/part0")
     val footer = ParquetCommon.readFooter(byteAccess)
-    assert(footer.rowGroups.length === 11)
+    assert(footer.rowGroups.length === 1)
   }
 }
