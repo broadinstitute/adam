@@ -32,9 +32,13 @@ import parquet.filter.ColumnPredicates._
 import scala.Some
 
 class S3AvroParquetRDDSuite extends SparkFunSuite {
+
+  val credentials = new SerializableAWSCredentials()
+
   sparkTest("Try pulling out a coupla records from a parquet file") {
     val rdd = new S3AvroParquetRDD[ADAMRecord](
       sc,
+      credentials,
       null,
       "genomebridge-variantstore-ci",
       "demo/reads12.adam/part1",
@@ -56,6 +60,7 @@ class S3AvroParquetRDDSuite extends SparkFunSuite {
 
     val rdd = new S3AvroParquetRDD[ADAMRecord](
       sc,
+      credentials,
       null,
       "genomebridge-variantstore-ci",
       "demo/reads12.adam/part1",
@@ -78,6 +83,7 @@ class S3AvroParquetRDDSuite extends SparkFunSuite {
 
     val rdd = new S3AvroParquetRDD[ADAMRecord](
       sc,
+      credentials,
       filter,
       "genomebridge-variantstore-ci",
       "demo/reads12.adam/part1",

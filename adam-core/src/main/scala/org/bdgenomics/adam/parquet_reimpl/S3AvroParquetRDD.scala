@@ -28,11 +28,13 @@ package org.bdgenomics.adam.parquet_reimpl {
   import scala.reflect._
   import parquet.avro.{ UsableAvroRecordMaterializer, AvroSchemaConverter }
   import parquet.schema.MessageType
+  import com.amazonaws.auth.AWSCredentials
 
   /**
    * This class is very specific for an S3 Avro Parquet RDD.
    */
   class S3AvroParquetRDD[T <: IndexedRecord: ClassTag](@transient sc: SparkContext,
+                                                       credentials: AWSCredentials,
                                                        private val filter: UnboundRecordFilter,
                                                        private val bucket: String,
                                                        private val keyName: String,
@@ -48,7 +50,7 @@ package org.bdgenomics.adam.parquet_reimpl {
       }
 
     def io(): ByteAccess = {
-      val s3client = new AmazonS3Client()
+      val s3client = new AmazonS3Client(credentials)
       new S3ByteAccess(s3client, bucket, keyName)
     }
 
