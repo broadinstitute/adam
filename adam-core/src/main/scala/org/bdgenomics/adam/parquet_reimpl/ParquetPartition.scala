@@ -45,8 +45,7 @@ class ParquetPartition(val index: Int,
     override def getRowCount: Long = rowGroup.rowCount
   }
 
-  def materializeRecords[T](config: Configuration,
-                            io: ByteAccess,
+  def materializeRecords[T](io: ByteAccess,
                             recordMaterializer: RecordMaterializer[T],
                             filter: UnboundRecordFilter): Iterator[T] = {
 
@@ -56,7 +55,7 @@ class ParquetPartition(val index: Int,
       cc => requestedPaths.contains(TypePath(cc.columnDescriptor.path))
     }
 
-    assert(config != null, "HadoopConfiguration was null")
+    val config: Configuration = new Configuration()
 
     val decompressor: Option[HadoopCompressionCodec] =
       CompressionCodecEnum.getHadoopCodec(rowGroup.columnChunks.head.compressionCodec, config)

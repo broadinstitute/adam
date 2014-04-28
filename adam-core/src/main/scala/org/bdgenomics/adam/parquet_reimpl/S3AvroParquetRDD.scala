@@ -41,8 +41,6 @@ package org.bdgenomics.adam.parquet_reimpl {
 
     assert(requestedSchema != null, "Use \"None\" instead of null for no schema.")
 
-    val config = sc.broadcast(sc.hadoopConfiguration)
-
     def convertAvroSchema(schema: Option[Schema], fileMessageType: MessageType): MessageType =
       schema match {
         case None    => fileMessageType
@@ -88,7 +86,7 @@ package org.bdgenomics.adam.parquet_reimpl {
 
       val avroRecordMaterializer = new UsableAvroRecordMaterializer[T](requestedMessageType, reqSchema)
 
-      parquetPartition.materializeRecords(config.value, byteAccess, avroRecordMaterializer, filter)
+      parquetPartition.materializeRecords(byteAccess, avroRecordMaterializer, filter)
     }
   }
 }
