@@ -52,6 +52,9 @@ class Vcf2FlatGenotypeArgs extends Args4jBase with ParquetArgs {
   var numThreads = 4
   @Args4jOption(required = false, name = "-queue_size", usage = "Queue size (default = 10,000)")
   var qSize = 10000
+
+  @Args4jOption(required = false, name = "-sample_block", usage = "The number of samples per parquet file")
+  var sampleBlock = 100
 }
 
 class Vcf2FlatGenotype(args: Vcf2FlatGenotypeArgs) extends ADAMCommand {
@@ -71,24 +74,45 @@ class Vcf2FlatGenotype(args: Vcf2FlatGenotypeArgs) extends ADAMCommand {
 
     val vcfReader = new VCFLineParser(new FileInputStream(new File(args.bamFile)), sampleSubset)
 
-    val parquetWriter = new AvroParquetWriter[ADAMFlatGenotype](
-      new Path(args.outputPath),
-      ADAMFlatGenotype.SCHEMA$,
-      args.compressionCodec, args.blockSize, args.pageSize, !args.disableDictionary)
-
-    var i = 0
-    for (vcfLine <- vcfReader) {
-      i += 1
-
-      VCFLineConverter.convert(vcfLine).foreach(parquetWriter.write)
-
-      if (i % 1000000 == 0) {
-        println("***** Read %d million lines from VCF file *****".format(i / 1000000))
-      }
+    val indexedSamples = vcfReader.samples.zipWithIndex.map {
+      case (sample, i) => (i / args.sampleBlock, sample)
     }
 
-    parquetWriter.close()
+    def createWriter(index: Int): AvroParquetWriter[ADAMFlatGenotype] =
+      new AvroParquetWriter[ADAMFlatGenotype](
+        new Path(args.outputPath + "/part_%d".format(index)),
+        ADAMFlatGenotype.SCHEMA$,
+        args.compressionCodec, args.blockSize, args.pageSize, !args.disableDictionary)
+
+    val writers = indexedSamples.map(_._1).distinct.map(i => createWriter(i))
+
+    val sampleWriters: Map[String, AvroParquetWriter[ADAMFlatGenotype]] =
+      indexedSamples.map {
+        case (i, sample) => (sample, writers(i))
+      }.toMap
+
+    var i: Long = 0
+    var lineCount: Long = 0
+    val million: Long = 1000000
+
+    for (vcfLine <- vcfReader) {
+      lineCount = 0
+
+      VCFLineConverter.convert(vcfLine).foreach {
+        case genotype: ADAMFlatGenotype => {
+          sampleWriters(genotype.getSampleId.toString).write(genotype)
+          lineCount += 1
+        }
+      }
+
+      if (i / million < (i + lineCount) / million) {
+        println("***** Read %d genotypes from VCF file *****".format(i + lineCount))
+      }
+      i += lineCount
+    }
+
     vcfReader.close()
+    writers.foreach(_.close())
 
     System.err.flush()
     System.out.flush()
