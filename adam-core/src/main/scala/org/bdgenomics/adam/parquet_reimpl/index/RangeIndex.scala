@@ -16,29 +16,40 @@
 package org.bdgenomics.adam.parquet_reimpl.index
 
 import org.bdgenomics.adam.models.ReferenceRegion
-import java.io.File
+import java.io.{FileOutputStream, PrintWriter, File}
 import scala.io.Source
 
+class RangeIndex(val indexFile: File) extends RowGroupIndex[RangeIndexEntry] {
 
-class RowGroupRangeIndex(val indexFile: File) extends RowGroupIndex[RowGroupRangeIndexEntry] {
-
-  val entries: Seq[RowGroupRangeIndexEntry] =
+  val entries: Seq[RangeIndexEntry] =
     Source.fromFile(indexFile).getLines().map {
       case line: String => {
         val array = line.split("\t")
         val path = array(0)
         val index = array(1).toInt
-        val ranges: Seq[ReferenceRegion] = array(2).split(",").map(RowGroupRangeIndex.parseRegion).toSeq
-        new RowGroupRangeIndexEntry(path, index, ranges)
+        val ranges: Seq[ReferenceRegion] = array(2).split(",").map(RangeIndex.parseRegion).toSeq
+        new RangeIndexEntry(path, index, ranges)
       }
     }.toSeq
 
-  override def findIndexEntries(predicate: IndexEntryPredicate[RowGroupRangeIndexEntry]): Iterable[RowGroupRangeIndexEntry] = {
+  override def findIndexEntries(predicate: IndexEntryPredicate[RangeIndexEntry]): Iterable[RangeIndexEntry] = {
     entries.filter(predicate.accepts)
   }
 }
 
-object RowGroupRangeIndex {
+class RangeIndexWriter(file : File) extends RowGroupIndexWriter[RangeIndexEntry] {
+
+  private val printer : PrintWriter = new PrintWriter(new FileOutputStream(file))
+
+  override def write(entry: RangeIndexEntry) {
+    printer.println(entry.line)
+  }
+  override def close(): Unit = {
+    printer.close()
+  }
+}
+
+object RangeIndex {
   private val referenceRegionRegex = "([^:]+):(\\d+)-(\\d+)".r
   private def parseRegion(regionString: String): ReferenceRegion = {
     referenceRegionRegex.findFirstMatchIn(regionString) match {
@@ -52,11 +63,17 @@ object RowGroupRangeIndex {
  * Query the entries of a range index by overlap with a query range.
  * @param queryRange
  */
-case class RangeIndexPredicate(queryRange : ReferenceRegion) extends IndexEntryPredicate[RowGroupRangeIndexEntry] {
-  override def accepts(entry: RowGroupRangeIndexEntry): Boolean =
+case class RangeIndexPredicate(queryRange : ReferenceRegion) extends IndexEntryPredicate[RangeIndexEntry] {
+  override def accepts(entry: RangeIndexEntry): Boolean =
     entry.ranges.exists( _.overlaps(queryRange) )
 }
 
-class RowGroupRangeIndexEntry(path: String, rowGroupIndex: Int, val ranges: Seq[ReferenceRegion])
+class RangeIndexEntry(path: String, rowGroupIndex: Int, val ranges: Seq[ReferenceRegion])
     extends RowGroupIndexEntry(path, rowGroupIndex) {
+
+  def stringifyRange(range : ReferenceRegion) : String = "%s:%d-%d".format(range.referenceName, range.start, range.end)
+
+  def line : String = {
+    "%s\t%d\t%s".format(path, rowGroupIndex, ranges.map(stringifyRange).mkString(","))
+  }
 }
