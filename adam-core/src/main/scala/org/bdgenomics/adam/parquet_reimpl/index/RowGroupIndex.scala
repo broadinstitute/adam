@@ -15,6 +15,11 @@
  */
 package org.bdgenomics.adam.parquet_reimpl.index
 
+/**
+ * Any index-file implementation should extend this trait.
+ *
+ * @tparam Entry The type of the entries in the index file.
+ */
 trait RowGroupIndex[Entry <: RowGroupIndexEntry] {
 
   def findIndexEntries(predicate: IndexEntryPredicate[Entry]): Iterable[Entry]

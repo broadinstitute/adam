@@ -15,6 +15,13 @@
  */
 package org.bdgenomics.adam.parquet_reimpl.index
 
+/**
+ * A predicate on the entries in an index-file.  The RDD which uses the index
+ * will receive an IndexEntryPredicate as an argument, and use it (on the index)
+ * to determine which row groups should be scanned.
+ *
+ * @tparam Entry The entry type
+ */
 trait IndexEntryPredicate[Entry <: RowGroupIndexEntry] extends Serializable {
   def accepts(entry: Entry): Boolean
 }

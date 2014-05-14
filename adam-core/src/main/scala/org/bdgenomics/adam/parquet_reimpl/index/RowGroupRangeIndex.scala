@@ -15,10 +15,10 @@
  */
 package org.bdgenomics.adam.parquet_reimpl.index
 
-import org.bdgenomics.adam.rdd.{ ParquetRowGroup, Footer }
 import org.bdgenomics.adam.models.ReferenceRegion
 import java.io.File
 import scala.io.Source
+
 
 class RowGroupRangeIndex(val indexFile: File) extends RowGroupIndex[RowGroupRangeIndexEntry] {
 
@@ -46,6 +46,15 @@ object RowGroupRangeIndex {
       case None    => throw new IllegalArgumentException("\"%s\" doesn't match reference region regex".format(regionString))
     }
   }
+}
+
+/**
+ * Query the entries of a range index by overlap with a query range.
+ * @param queryRange
+ */
+case class RangeIndexPredicate(queryRange : ReferenceRegion) extends IndexEntryPredicate[RowGroupRangeIndexEntry] {
+  override def accepts(entry: RowGroupRangeIndexEntry): Boolean =
+    entry.ranges.exists( _.overlaps(queryRange) )
 }
 
 class RowGroupRangeIndexEntry(path: String, rowGroupIndex: Int, val ranges: Seq[ReferenceRegion])
