@@ -27,7 +27,8 @@ import org.bdgenomics.adam.rdd.ParquetColumnDescriptor
 import org.bdgenomics.adam.rdd.ParquetRowGroup
 import org.apache.hadoop.conf.Configuration
 
-class ParquetPartition(val index: Int,
+class ParquetPartition(val locator : FileLocator,
+                       val index: Int,
                        val rowGroup: ParquetRowGroup,
                        val requestedSchema: ParquetSchemaType,
                        val actualSchema: ParquetSchemaType)
