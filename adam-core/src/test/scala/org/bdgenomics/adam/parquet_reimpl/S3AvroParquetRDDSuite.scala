@@ -17,24 +17,18 @@ package org.bdgenomics.adam.parquet_reimpl
 
 import org.bdgenomics.adam.avro.ADAMRecord
 import org.bdgenomics.adam.util.SparkFunSuite
-import com.amazonaws.services.s3.AmazonS3Client
-import org.bdgenomics.adam.parquet_reimpl.S3AvroParquetRDD
 import org.bdgenomics.adam.projections.Projection
 import parquet.filter.{ RecordFilter, UnboundRecordFilter }
 import java.lang.Iterable
 import parquet.column.ColumnReader
 
 import scala.collection.JavaConversions._
-import parquet.io.api.Binary
-import parquet.filter.ColumnRecordFilter._
-import scala.Some
-import parquet.filter.ColumnPredicates._
 import scala.Some
 import java.io.File
 
 class S3AvroParquetRDDSuite extends SparkFunSuite {
 
-  val credentials = new CredentialsProperties(new File("~/spark.conf")).awsCredentials()
+  val credentials = new CredentialsProperties(new File(System.getProperty("user.home") + "/spark.conf")).awsCredentials()
 
   sparkTest("Try pulling out a coupla records from a parquet file") {
     val rdd = new S3AvroParquetRDD[ADAMRecord](
