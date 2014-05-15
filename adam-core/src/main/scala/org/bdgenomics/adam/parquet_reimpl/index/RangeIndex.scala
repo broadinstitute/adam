@@ -16,13 +16,18 @@
 package org.bdgenomics.adam.parquet_reimpl.index
 
 import org.bdgenomics.adam.models.ReferenceRegion
-import java.io.{ FileOutputStream, PrintWriter, File }
+import java.io._
 import scala.io.Source
+import org.bdgenomics.adam.parquet_reimpl.index.RangeIndexEntry
+import scala.Some
+import org.bdgenomics.adam.parquet_reimpl.ByteAccess
 
-class RangeIndex(val indexFile: File) extends RowGroupIndex[RangeIndexEntry] {
+class RangeIndex(val is : InputStream) extends RowGroupIndex[RangeIndexEntry] {
+  def this(file : File) = this(new FileInputStream(file))
+  def this(io : ByteAccess) = this(io.readByteStream(0, io.length().toInt))
 
   val entries: Seq[RangeIndexEntry] =
-    Source.fromFile(indexFile).getLines().map {
+    Source.fromInputStream(is).getLines().map {
       case line: String => {
         val array = line.split("\t")
         val path = array(0)
