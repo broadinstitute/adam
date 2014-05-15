@@ -28,7 +28,8 @@ import java.io.File
 
 class S3AvroParquetRDDSuite extends SparkFunSuite {
 
-  val credentials = new CredentialsProperties(new File(System.getProperty("user.home") + "/spark.conf")).awsCredentials()
+  val credentials = new CredentialsProperties(new File(System.getProperty("user.home") + "/spark.conf"))
+    .awsCredentials(Some("s3"))
 
   sparkTest("Try pulling out a coupla records from a parquet file") {
     val rdd = new S3AvroParquetRDD[ADAMRecord](

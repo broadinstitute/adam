@@ -16,8 +16,8 @@ class CredentialsProperties(location: File) extends Serializable with Logging {
 
   val configuration = new ConfigurationFile(location, Some(defaultMap))
 
-  logWarning("AWS Access Key from /etc/spark.conf: \"%s\"".format(accessKey(None)))
-  logWarning("S3 AWS Access Key from /etc/spark.conf: \"%s\"".format(accessKey(Some("s3"))))
+  logWarning("AWS Access Key from %s: \"%s\"".format(location.getAbsolutePath, accessKey(None)))
+  logWarning("S3 AWS Access Key from %s: \"%s\"".format(location.getAbsolutePath, accessKey(Some("s3"))))
 
   def configuredValue(keyName: String, suffix: Option[String] = None): String = {
     suffix match {
