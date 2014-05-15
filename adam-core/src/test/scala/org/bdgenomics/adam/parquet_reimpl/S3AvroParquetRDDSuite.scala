@@ -30,10 +30,11 @@ import parquet.filter.ColumnRecordFilter._
 import scala.Some
 import parquet.filter.ColumnPredicates._
 import scala.Some
+import java.io.File
 
 class S3AvroParquetRDDSuite extends SparkFunSuite {
 
-  val credentials = new SerializableAWSCredentials()
+  val credentials = new CredentialsProperties(new File("~/spark.conf")).awsCredentials()
 
   sparkTest("Try pulling out a coupla records from a parquet file") {
     val rdd = new S3AvroParquetRDD[ADAMRecord](
