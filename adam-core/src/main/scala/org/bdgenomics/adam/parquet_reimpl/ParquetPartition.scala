@@ -20,9 +20,8 @@ import parquet.io.api.RecordMaterializer
 import parquet.io.ColumnIOFactory
 import parquet.column.page.{ PageReadStore, PageReader }
 import parquet.column.ColumnDescriptor
-import org.apache.hadoop.io.compress.{ CompressionCodec => HadoopCompressionCodec, CodecPool }
-import org.apache.spark.{ SparkContext, Partition }
-import org.bdgenomics.adam.parquet_reimpl.ParquetSchemaType
+import org.apache.hadoop.io.compress.{ CompressionCodec => HadoopCompressionCodec }
+import org.apache.spark.Partition
 import org.bdgenomics.adam.rdd._
 import org.bdgenomics.adam.rdd.ParquetColumnDescriptor
 import org.bdgenomics.adam.rdd.ParquetRowGroup
@@ -34,20 +33,32 @@ class ParquetPartition(val index: Int,
                        val actualSchema: ParquetSchemaType)
     extends Partition {
 
-  class PartitionPageReadStore(chunkMap: Map[ParquetColumnDescriptor, PageReader])
-      extends PageReadStore {
+  def materializeRecords[T](io: ByteAccess,
+                            recordMaterializer: RecordMaterializer[T],
+                            filter: UnboundRecordFilter ): Iterator[T] =
+    ParquetPartition.materializeRecords(io, recordMaterializer, filter, rowGroup, requestedSchema, actualSchema)
 
-    override def getPageReader(cd: ColumnDescriptor): PageReader =
-      chunkMap
-        .get(new ParquetColumnDescriptor(cd))
-        .getOrElse(
-          throw new NoSuchElementException("Could not find %s in the map %s".format(cd.getPath.mkString("."), chunkMap.keys.map(_.path.mkString(".")).mkString(","))))
-    override def getRowCount: Long = rowGroup.rowCount
-  }
+}
+
+class PartitionPageReadStore(chunkMap: Map[ParquetColumnDescriptor, PageReader], rowGroup : ParquetRowGroup)
+  extends PageReadStore {
+
+  override def getPageReader(cd: ColumnDescriptor): PageReader =
+    chunkMap
+      .get(new ParquetColumnDescriptor(cd))
+      .getOrElse(
+        throw new NoSuchElementException("Could not find %s in the map %s".format(cd.getPath.mkString("."), chunkMap.keys.map(_.path.mkString(".")).mkString(","))))
+  override def getRowCount: Long = rowGroup.rowCount
+}
+
+object ParquetPartition {
 
   def materializeRecords[T](io: ByteAccess,
                             recordMaterializer: RecordMaterializer[T],
-                            filter: UnboundRecordFilter): Iterator[T] = {
+                            filter: UnboundRecordFilter,
+                            rowGroup : ParquetRowGroup,
+                            requestedSchema : ParquetSchemaType,
+                            actualSchema : ParquetSchemaType): Iterator[T] = {
 
     val requestedPaths = requestedSchema.paths()
 
@@ -63,7 +74,7 @@ class ParquetPartition(val index: Int,
     val chunkMap = requestedColumnChunks
       .map(cc => (cc.columnDescriptor, cc.readAllPages(decompressor, io)))
       .toMap
-    val pageReadStore = new PartitionPageReadStore(chunkMap)
+    val pageReadStore = new PartitionPageReadStore(chunkMap, rowGroup)
 
     val columnIOFactory: ColumnIOFactory = new ColumnIOFactory
     val columnIO = columnIOFactory.getColumnIO(requestedSchema.convertToParquet(), actualSchema.convertToParquet())
@@ -87,5 +98,6 @@ class ParquetPartition(val index: Int,
 
       override def hasNext: Boolean = nextT.isDefined
     }
+
   }
 }
