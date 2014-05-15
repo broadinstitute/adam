@@ -22,7 +22,8 @@ import org.scalatest.FunSuite
 import org.bdgenomics.adam.rdd.{ ParquetCommon }
 
 class ParquetCommonSuite extends FunSuite {
-
+  val credentials = new CredentialsProperties(new File(System.getProperty("user.home") + "/spark.conf"))
+    .awsCredentials(Some("s3"))
   val filename = Thread.currentThread().getContextClassLoader.getResource("small_adam.fgenotype").getFile
   val s3Filename = ""
 
@@ -34,12 +35,16 @@ class ParquetCommonSuite extends FunSuite {
   }
 
   test("Testing S3 byte access") {
-    val byteAccess = new S3ByteAccess(new AmazonS3Client(), "genomebridge-variantstore-ci", "demo/reads12.adam/part0")
+    val byteAccess = new S3ByteAccess(new AmazonS3Client(credentials),
+      "genomebridge-variantstore-ci",
+      "demo/reads12.adam/part0")
     assert(byteAccess.readFully(0, 1)(0) === 80)
   }
 
   test("Reading a footer from S3") {
-    val byteAccess = new S3ByteAccess(new AmazonS3Client(), "genomebridge-variantstore-ci", "demo/reads12.adam/part0")
+    val byteAccess = new S3ByteAccess(new AmazonS3Client(credentials),
+      "genomebridge-variantstore-ci",
+      "demo/reads12.adam/part0")
     val footer = ParquetCommon.readFooter(byteAccess)
     assert(footer.rowGroups.length === 1)
   }
