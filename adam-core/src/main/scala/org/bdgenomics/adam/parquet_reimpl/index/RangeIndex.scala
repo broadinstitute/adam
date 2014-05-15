@@ -16,7 +16,7 @@
 package org.bdgenomics.adam.parquet_reimpl.index
 
 import org.bdgenomics.adam.models.ReferenceRegion
-import java.io.{FileOutputStream, PrintWriter, File}
+import java.io.{ FileOutputStream, PrintWriter, File }
 import scala.io.Source
 
 class RangeIndex(val indexFile: File) extends RowGroupIndex[RangeIndexEntry] {
@@ -37,9 +37,9 @@ class RangeIndex(val indexFile: File) extends RowGroupIndex[RangeIndexEntry] {
   }
 }
 
-class RangeIndexWriter(file : File) extends RowGroupIndexWriter[RangeIndexEntry] {
+class RangeIndexWriter(file: File) extends RowGroupIndexWriter[RangeIndexEntry] {
 
-  private val printer : PrintWriter = new PrintWriter(new FileOutputStream(file))
+  private val printer: PrintWriter = new PrintWriter(new FileOutputStream(file))
 
   override def write(entry: RangeIndexEntry) {
     printer.println(entry.line)
@@ -63,17 +63,17 @@ object RangeIndex {
  * Query the entries of a range index by overlap with a query range.
  * @param queryRange
  */
-case class RangeIndexPredicate(queryRange : ReferenceRegion) extends IndexEntryPredicate[RangeIndexEntry] {
+case class RangeIndexPredicate(queryRange: ReferenceRegion) extends IndexEntryPredicate[RangeIndexEntry] {
   override def accepts(entry: RangeIndexEntry): Boolean =
-    entry.ranges.exists( _.overlaps(queryRange) )
+    entry.ranges.exists(_.overlaps(queryRange))
 }
 
-class RangeIndexEntry(path: String, rowGroupIndex: Int, val ranges: Seq[ReferenceRegion])
+case class RangeIndexEntry(path: String, rowGroupIndex: Int, ranges: Seq[ReferenceRegion])
     extends RowGroupIndexEntry(path, rowGroupIndex) {
 
-  def stringifyRange(range : ReferenceRegion) : String = "%s:%d-%d".format(range.referenceName, range.start, range.end)
+  def stringifyRange(range: ReferenceRegion): String = "%s:%d-%d".format(range.referenceName, range.start, range.end)
 
-  def line : String = {
+  def line: String = {
     "%s\t%d\t%s".format(path, rowGroupIndex, ranges.map(stringifyRange).mkString(","))
   }
 }

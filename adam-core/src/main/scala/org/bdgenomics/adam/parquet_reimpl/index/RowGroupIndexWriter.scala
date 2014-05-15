@@ -17,6 +17,6 @@ package org.bdgenomics.adam.parquet_reimpl.index
 
 trait RowGroupIndexWriter[Entry <: RowGroupIndexEntry] {
 
-  def write(entry : Entry)
+  def write(entry: Entry)
   def close()
 }

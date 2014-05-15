@@ -35,13 +35,13 @@ class ParquetPartition(val index: Int,
 
   def materializeRecords[T](io: ByteAccess,
                             recordMaterializer: RecordMaterializer[T],
-                            filter: UnboundRecordFilter ): Iterator[T] =
+                            filter: UnboundRecordFilter): Iterator[T] =
     ParquetPartition.materializeRecords(io, recordMaterializer, filter, rowGroup, requestedSchema, actualSchema)
 
 }
 
-class PartitionPageReadStore(chunkMap: Map[ParquetColumnDescriptor, PageReader], rowGroup : ParquetRowGroup)
-  extends PageReadStore {
+class PartitionPageReadStore(chunkMap: Map[ParquetColumnDescriptor, PageReader], rowGroup: ParquetRowGroup)
+    extends PageReadStore {
 
   override def getPageReader(cd: ColumnDescriptor): PageReader =
     chunkMap
@@ -56,9 +56,9 @@ object ParquetPartition {
   def materializeRecords[T](io: ByteAccess,
                             recordMaterializer: RecordMaterializer[T],
                             filter: UnboundRecordFilter,
-                            rowGroup : ParquetRowGroup,
-                            requestedSchema : ParquetSchemaType,
-                            actualSchema : ParquetSchemaType): Iterator[T] = {
+                            rowGroup: ParquetRowGroup,
+                            requestedSchema: ParquetSchemaType,
+                            actualSchema: ParquetSchemaType): Iterator[T] = {
 
     val requestedPaths = requestedSchema.paths()
 

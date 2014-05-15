@@ -24,7 +24,7 @@ class RowGroupRangeIndexSuite extends FunSuite {
     val filename = getClass().getClassLoader.getResource("test_rowgroup_rangeindex.1.txt").getFile
     val file = new File(filename)
 
-    val rangeIndex = new RowGroupRangeIndex(file)
+    val rangeIndex = new RangeIndex(file)
 
     assert(rangeIndex.entries.size === 1)
     assert(rangeIndex.entries.head.ranges.size === 2)

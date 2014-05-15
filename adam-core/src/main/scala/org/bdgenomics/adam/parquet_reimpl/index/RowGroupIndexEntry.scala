@@ -25,7 +25,7 @@ import org.bdgenomics.adam.rdd.{ ParquetRowGroup, Footer }
  */
 class RowGroupIndexEntry(path: String, index: Int) {
 
-  assert( index >= 0, "Negative row-group indices are not allowed." )
+  assert(index >= 0, "Negative row-group indices are not allowed.")
 
   def parquetFilePath(): String = path
   def getRowGroup(footer: Footer): ParquetRowGroup = footer.rowGroups(index)
