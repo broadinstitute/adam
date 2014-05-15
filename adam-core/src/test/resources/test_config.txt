@@ -1,2 +1,0 @@
-#type   name    location
-reads   test_reads classpath://reads12.sam
