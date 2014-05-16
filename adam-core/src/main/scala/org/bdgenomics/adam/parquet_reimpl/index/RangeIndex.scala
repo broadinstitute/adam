@@ -22,28 +22,19 @@ import org.bdgenomics.adam.parquet_reimpl.index.RangeIndexEntry
 import scala.Some
 import org.bdgenomics.adam.parquet_reimpl.ByteAccess
 
-class RangeIndex(val is : InputStream) extends RowGroupIndex[RangeIndexEntry] {
-  def this(file : File) = this(new FileInputStream(file))
-  def this(io : ByteAccess) = this(io.readByteStream(0, io.length().toInt))
-
-  val entries: Seq[RangeIndexEntry] =
-    Source.fromInputStream(is).getLines().map {
-      case line: String => {
-        val array = line.split("\t")
-        val path = array(0)
-        val index = array(1).toInt
-        val ranges: Seq[ReferenceRegion] = array(2).split(",").map(RangeIndex.parseRegion).toSeq
-        new RangeIndexEntry(path, index, ranges)
-      }
-    }.toSeq
+class RangeIndex(val entries: Iterable[RangeIndexEntry]) extends RowGroupIndex[RangeIndexEntry] {
+  def this(itr: Iterator[RangeIndexEntry]) = this(itr.toIterable)
+  def this(is: InputStream) = this(Source.fromInputStream(is).getLines().map(RangeIndex.parseRangeIndexEntry))
+  def this(file: File) = this(new FileInputStream(file))
+  def this(io: ByteAccess) = this(io.readByteStream(0, io.length().toInt))
 
   override def findIndexEntries(predicate: IndexEntryPredicate[RangeIndexEntry]): Iterable[RangeIndexEntry] = {
     entries.filter(predicate.accepts)
   }
 }
 
-class RangeIndexWriter(os : OutputStream) extends RowGroupIndexWriter[RangeIndexEntry] {
-  def this(f : File) = this(new FileOutputStream(f))
+class RangeIndexWriter(os: OutputStream) extends RowGroupIndexWriter[RangeIndexEntry] {
+  def this(f: File) = this(new FileOutputStream(f))
   private val printer: PrintWriter = new PrintWriter(os)
 
   override def write(entry: RangeIndexEntry) {
@@ -56,11 +47,20 @@ class RangeIndexWriter(os : OutputStream) extends RowGroupIndexWriter[RangeIndex
 
 object RangeIndex {
   private val referenceRegionRegex = "([^:]+):(\\d+)-(\\d+)".r
-  private def parseRegion(regionString: String): ReferenceRegion = {
+
+  def parseRegion(regionString: String): ReferenceRegion = {
     referenceRegionRegex.findFirstMatchIn(regionString) match {
       case Some(m) => ReferenceRegion(m.group(1), m.group(2).toLong, m.group(3).toLong)
       case None    => throw new IllegalArgumentException("\"%s\" doesn't match reference region regex".format(regionString))
     }
+  }
+
+  def parseRangeIndexEntry(line: String): RangeIndexEntry = {
+    val array = line.split("\t")
+    val path = array(0)
+    val index = array(1).toInt
+    val ranges: Seq[ReferenceRegion] = array(2).split(",").map(parseRegion).toSeq
+    new RangeIndexEntry(path, index, ranges)
   }
 }
 
