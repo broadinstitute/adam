@@ -30,10 +30,13 @@ import org.bdgenomics.adam.parquet_reimpl.filters.CombinedFilter
 import parquet.format.FileMetaData
 
 
-class S3AvroIndexedParquetRDD[T <: IndexedRecord : ClassTag](@transient sc : SparkContext,
-                                                             private val filter : CombinedFilter[T, RangeIndexEntry],
-                                                             private val indexLocator : FileLocator,
-                                                             @transient private val requestedSchema : Option[Schema])
+class S3AvroIndexedParquetRDD[T <: IndexedRecord : ClassTag]
+(@transient sc : SparkContext,
+ private val filter : CombinedFilter[T, RangeIndexEntry],
+ private val indexLocator : FileLocator,
+ private val dataRootLocator : FileLocator,
+ @transient private val requestedSchema : Option[Schema])
+
   extends RDD[T](sc, Nil) {
 
   case class ParquetFileData(locator : FileLocator, footer : Footer, metadata : FileMetaData, requested : ParquetSchemaType, actualSchema : ParquetSchemaType) {}
@@ -45,12 +48,12 @@ class S3AvroIndexedParquetRDD[T <: IndexedRecord : ClassTag](@transient sc : Spa
     }
 
   override protected def getPartitions: Array[Partition] = {
-    val index : RangeIndex = new RangeIndex(indexLocator.relativeLocator("index").bytes)
+    val index : RangeIndex = new RangeIndex(indexLocator.bytes)
     val entries : Iterable[RangeIndexEntry] = index.findIndexEntries(filter.indexPredicate)
 
     val parquetFiles : Map[String,ParquetFileData] = entries.map(_.path).toSeq.distinct.map {
       case parquetFilePath : String => {
-        val parquetLocator = indexLocator.relativeLocator(parquetFilePath)
+        val parquetLocator = dataRootLocator.relativeLocator(parquetFilePath)
 
         val fileMetadata = ParquetCommon.readFileMetadata(parquetLocator.bytes)
         val footer = new Footer(fileMetadata)
