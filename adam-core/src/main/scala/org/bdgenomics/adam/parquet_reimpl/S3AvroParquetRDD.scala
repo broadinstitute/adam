@@ -25,7 +25,7 @@ import org.apache.avro.generic.IndexedRecord
 import scala.reflect._
 import parquet.avro.{ UsableAvroRecordMaterializer, AvroSchemaConverter }
 import parquet.schema.MessageType
-import org.bdgenomics.adam.parquet_reimpl.index.{RangeIndex, RangeIndexEntry}
+import org.bdgenomics.adam.parquet_reimpl.index.{ParquetFileMetadata, RangeIndex, RangeIndexEntry}
 import org.bdgenomics.adam.parquet_reimpl.filters.CombinedFilter
 import parquet.format.FileMetaData
 
@@ -39,8 +39,6 @@ class S3AvroIndexedParquetRDD[T <: IndexedRecord : ClassTag]
 
   extends RDD[T](sc, Nil) {
 
-  case class ParquetFileData(locator : FileLocator, footer : Footer, metadata : FileMetaData, requested : ParquetSchemaType, actualSchema : ParquetSchemaType) {}
-
   def convertAvroSchema(schema: Option[Schema], fileMessageType: MessageType): MessageType =
     schema match {
       case None    => fileMessageType
@@ -49,9 +47,26 @@ class S3AvroIndexedParquetRDD[T <: IndexedRecord : ClassTag]
 
   override protected def getPartitions: Array[Partition] = {
     val index : RangeIndex = new RangeIndex(indexLocator.bytes)
+
+    /**
+     * There are three steps here:
+     *
+     * 1. find the relevant index entries from the index
+     * 2. find the distinct parquet files from the corresponding entries, and load their
+     *    metadata.
+     * 3. use the metadata of the parquet files to construct the corresponding ParquetPartition
+     *    objects.
+     */
+
+    /*
+    Step 1: find the relevant index entries
+     */
     val entries : Iterable[RangeIndexEntry] = index.findIndexEntries(filter.indexPredicate)
 
-    val parquetFiles : Map[String,ParquetFileData] = entries.map(_.path).toSeq.distinct.map {
+    /*
+    Step 2: get the parquet file metadata.
+     */
+    val parquetFiles : Map[String,ParquetFileMetadata] = entries.map(_.path).toSeq.distinct.map {
       case parquetFilePath : String => {
         val parquetLocator = dataRootLocator.relativeLocator(parquetFilePath)
 
@@ -63,16 +78,15 @@ class S3AvroIndexedParquetRDD[T <: IndexedRecord : ClassTag]
         val requested = new ParquetSchemaType(requestedMessage)
         val actual = new ParquetSchemaType(fileMessageType)
 
-        parquetFilePath -> ParquetFileData(parquetLocator, footer, fileMetadata, requested, actual)
+        parquetFilePath -> ParquetFileMetadata(parquetLocator, footer, fileMetadata, requested, actual)
       }
     }.toMap
 
+    /*
+    Step 3: build the ParquetPartition values.
+     */
     entries.toArray.map {
-      case RangeIndexEntry(path, i, ranges) => {
-        val fileData = parquetFiles(path)
-        val rowGroup = fileData.footer.rowGroups(i)
-        new ParquetPartition(fileData.locator, i, rowGroup, fileData.requested, fileData.actualSchema)
-      }
+      case RangeIndexEntry(path, i, ranges) => parquetFiles(path).partition(i)
     }
   }
 
