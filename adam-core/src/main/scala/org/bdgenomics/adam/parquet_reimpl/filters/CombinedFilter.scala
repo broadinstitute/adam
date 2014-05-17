@@ -25,3 +25,13 @@ trait CombinedFilter[RecordType <: IndexedRecord, IndexEntryType <: RowGroupInde
   def predicate : RecordType=>Boolean
   def indexPredicate : IndexEntryPredicate[IndexEntryType]
 }
+
+class FilterTuple[R <: IndexedRecord, E <: RowGroupIndexEntry](filter : UnboundRecordFilter,
+                                                                pred : R => Boolean,
+                                                                indexPred : IndexEntryPredicate[E])
+  extends CombinedFilter[R, E] {
+
+  override def recordFilter: UnboundRecordFilter = filter
+  override def predicate: (R) => Boolean = pred
+  override def indexPredicate: IndexEntryPredicate[E] = indexPred
+}
