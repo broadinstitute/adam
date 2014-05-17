@@ -55,8 +55,15 @@ class RangeIndexGenerator[T <: IndexedRecord](rangeGapSize: Long = 10000L)(impli
     ParquetPartition.materializeRecords(io, materializer, filter, rowGroup, reqSchema, actualSchema).map(
       referenceMapping.getReferenceRegion).filter(_ != null).foldRight(Seq[ReferenceRegion]())(folder)
 
-  def addParquetFile(parquetFilePath: String): Iterator[RangeIndexEntry] = {
-    val io = new InputStreamByteAccess(new File(parquetFilePath))
+  def addParquetFile(fullPath : String) : Iterator[RangeIndexEntry] = {
+    val file = new File(fullPath)
+    val rootLocator = new LocalFileLocator(file.getParentFile)
+    addParquetFile(rootLocator, file.getName)
+  }
+
+  def addParquetFile(rootLocator : FileLocator, relativePath : String): Iterator[RangeIndexEntry] = {
+    val locator = rootLocator.relativeLocator(relativePath)
+    val io = locator.bytes
     val footer: Footer = ParquetCommon.readFooter(io)
     val actualSchema: ParquetSchemaType = new ParquetSchemaType(ParquetCommon.parseMessageType(ParquetCommon.readFileMetadata(io)))
     val reqSchema: ParquetSchemaType = actualSchema
@@ -65,7 +72,7 @@ class RangeIndexGenerator[T <: IndexedRecord](rangeGapSize: Long = 10000L)(impli
 
     footer.rowGroups.zipWithIndex.map {
       case (rowGroup: ParquetRowGroup, i: Int) =>
-        new RangeIndexEntry(parquetFilePath, i, ranges(rowGroup, io, avroRecordMaterializer, reqSchema, actualSchema))
+        new RangeIndexEntry(relativePath, i, ranges(rowGroup, io, avroRecordMaterializer, reqSchema, actualSchema))
     }.iterator
   }
 }
