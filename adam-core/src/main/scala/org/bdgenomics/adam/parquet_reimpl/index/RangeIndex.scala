@@ -42,9 +42,9 @@ class RangeIndex(val is : InputStream) extends RowGroupIndex[RangeIndexEntry] {
   }
 }
 
-class RangeIndexWriter(file: File) extends RowGroupIndexWriter[RangeIndexEntry] {
-
-  private val printer: PrintWriter = new PrintWriter(new FileOutputStream(file))
+class RangeIndexWriter(os : OutputStream) extends RowGroupIndexWriter[RangeIndexEntry] {
+  def this(f : File) = this(new FileOutputStream(f))
+  private val printer: PrintWriter = new PrintWriter(os)
 
   override def write(entry: RangeIndexEntry) {
     printer.println(entry.line)
