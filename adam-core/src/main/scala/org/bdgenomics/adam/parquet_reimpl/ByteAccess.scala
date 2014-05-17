@@ -15,9 +15,10 @@
  */
 package org.bdgenomics.adam.parquet_reimpl
 
-import java.io.{ EOFException, FileInputStream, File, InputStream }
+import java.io._
 import com.amazonaws.services.s3.AmazonS3
 import com.amazonaws.services.s3.model.GetObjectRequest
+import scala.Serializable
 
 trait ByteAccess {
   def length(): Long
@@ -34,6 +35,15 @@ trait ByteAccess {
       totalBytesRead += bytesRead
     }
     buffer
+  }
+}
+
+class ByteArrayByteAccess(val bytes : Array[Byte]) extends ByteAccess with Serializable {
+  override def length(): Long = bytes.length
+  override def readByteStream(offset: Long, length: Int): InputStream = {
+    val is = new ByteArrayInputStream(bytes)
+    is.skip(length)
+    is
   }
 }
 
