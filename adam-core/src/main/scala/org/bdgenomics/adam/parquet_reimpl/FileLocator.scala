@@ -17,7 +17,7 @@ package org.bdgenomics.adam.parquet_reimpl
 
 import com.amazonaws.auth.AWSCredentials
 import com.amazonaws.services.s3.AmazonS3Client
-import java.io.File
+import java.io.{ByteArrayInputStream, File}
 
 trait FileLocator extends Serializable {
 
@@ -36,4 +36,9 @@ class S3FileLocator(val credentials : AWSCredentials, val bucket : String, val k
 class LocalFileLocator(val file : File) extends FileLocator {
   override def relativeLocator(relativePath: String): FileLocator = new LocalFileLocator(new File(file, relativePath))
   override def bytes: ByteAccess = new InputStreamByteAccess(file)
+}
+
+class ByteArrayLocator(val byteData : Array[Byte]) extends FileLocator {
+  override def relativeLocator(relativePath: String): FileLocator = this
+  override def bytes: ByteAccess = new ByteArrayByteAccess(byteData)
 }
