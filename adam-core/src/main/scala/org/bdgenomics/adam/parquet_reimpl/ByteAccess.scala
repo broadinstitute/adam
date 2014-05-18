@@ -38,7 +38,7 @@ trait ByteAccess {
   }
 }
 
-class ByteArrayByteAccess(val bytes : Array[Byte]) extends ByteAccess with Serializable {
+class ByteArrayByteAccess(val bytes: Array[Byte]) extends ByteAccess with Serializable {
   override def length(): Long = bytes.length
   override def readByteStream(offset: Long, length: Int): InputStream = {
     val is = new ByteArrayInputStream(bytes)

@@ -55,13 +55,13 @@ class RangeIndexGenerator[T <: IndexedRecord](rangeGapSize: Long = 10000L)(impli
     ParquetPartition.materializeRecords(io, materializer, filter, rowGroup, reqSchema, actualSchema).map(
       referenceMapping.getReferenceRegion).filter(_ != null).foldRight(Seq[ReferenceRegion]())(folder)
 
-  def addParquetFile(fullPath : String) : Iterator[RangeIndexEntry] = {
+  def addParquetFile(fullPath: String): Iterator[RangeIndexEntry] = {
     val file = new File(fullPath)
     val rootLocator = new LocalFileLocator(file.getParentFile)
     addParquetFile(rootLocator, file.getName)
   }
 
-  def addParquetFile(rootLocator : FileLocator, relativePath : String): Iterator[RangeIndexEntry] = {
+  def addParquetFile(rootLocator: FileLocator, relativePath: String): Iterator[RangeIndexEntry] = {
     val locator = rootLocator.relativeLocator(relativePath)
     val io = locator.bytes
     val footer: Footer = ParquetCommon.readFooter(io)

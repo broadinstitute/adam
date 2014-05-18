@@ -15,7 +15,7 @@
  */
 package org.bdgenomics.adam.parquet_reimpl
 
-import org.bdgenomics.adam.avro.ADAMRecord
+import org.bdgenomics.adam.avro.{ ADAMFlatGenotype, ADAMRecord }
 import org.bdgenomics.adam.util.SparkFunSuite
 import org.bdgenomics.adam.projections.Projection
 import parquet.filter.{ RecordFilter, UnboundRecordFilter }
@@ -24,7 +24,79 @@ import parquet.column.ColumnReader
 
 import scala.collection.JavaConversions._
 import scala.Some
-import java.io.File
+import java.io.{ ByteArrayOutputStream, File }
+import org.bdgenomics.adam.parquet_reimpl.index._
+import org.bdgenomics.adam.parquet_reimpl.filters.FilterTuple
+import scala.Some
+import org.bdgenomics.adam.parquet_reimpl.index.RangeIndexEntry
+import org.bdgenomics.adam.models.ReferenceRegion
+import org.bdgenomics.adam.rich.ReferenceMappingContext._
+
+class RDDFunSuite extends SparkFunSuite {
+
+  def resourceFile(resourceName: String): File = {
+    val path = Thread.currentThread().getContextClassLoader.getResource(resourceName).getFile
+    new File(path)
+  }
+
+  def resourceLocator(resourceName: String): FileLocator =
+    new LocalFileLocator(resourceFile(resourceName))
+}
+
+class S3AvroIndexedParquetRDDSuite extends RDDFunSuite {
+
+  def writeIndexAsBytes(rootLocator: FileLocator, parquets: String*): FileLocator = {
+    val rangeIndexGenerator = new RangeIndexGenerator[ADAMFlatGenotype]
+
+    val entries = parquets.flatMap {
+      case parquet: String =>
+        rangeIndexGenerator.addParquetFile(rootLocator, parquet)
+    }
+
+    val rangeIndex = new RangeIndex(entries)
+
+    val byteArrayOutputStream = new ByteArrayOutputStream()
+    val indexWriter = new RangeIndexWriter(byteArrayOutputStream)
+
+    rangeIndex.entries.foreach(indexWriter.write)
+    indexWriter.close()
+
+    new ByteArrayLocator(byteArrayOutputStream.toByteArray)
+  }
+
+  sparkTest("S3AvroIndexedParquetRDD can read a local index and produce the correct records") {
+
+    val inputDataFile = resourceFile("small_adam.fgenotype")
+    val inputDataRootLocator = new LocalFileLocator(inputDataFile.getParentFile)
+    val indexFileLocator = writeIndexAsBytes(inputDataRootLocator, "small_adam.fgenotype")
+
+    val queryRange = ReferenceRegion("chr1", 5000, 15000)
+    val filter = new FilterTuple[ADAMFlatGenotype, RangeIndexEntry](null, null,
+      new RangeIndexPredicate(queryRange))
+    val indexedRDD = new S3AvroIndexedParquetRDD[ADAMFlatGenotype](sc, filter, indexFileLocator, inputDataRootLocator, None)
+
+    val fileMetadata = AvroParquetFileMetadata(new LocalFileLocator(inputDataFile), None)
+    val records = indexedRDD.compute(fileMetadata.partition(0), null).toSeq
+
+    assert(records.size === 15)
+    assert(records.map(_.getReferenceName).distinct === Seq("chr1"))
+  }
+
+  sparkTest("S3AvroIndexedParquetRDD produces no partitions, if the query overlaps no read groups") {
+
+    val inputDataFile = resourceFile("small_adam.fgenotype")
+    val inputDataRootLocator = new LocalFileLocator(inputDataFile.getParentFile)
+    val indexFileLocator = writeIndexAsBytes(inputDataRootLocator, "small_adam.fgenotype")
+
+    // this query Range is on chr10, which should overlap no read groups at all
+    val queryRange = ReferenceRegion("chr10", 5000, 15000)
+    val filter = new FilterTuple[ADAMFlatGenotype, RangeIndexEntry](null, null,
+      new RangeIndexPredicate(queryRange))
+    val indexedRDD = new S3AvroIndexedParquetRDD[ADAMFlatGenotype](sc, filter, indexFileLocator, inputDataRootLocator, None)
+
+    assert(indexedRDD.partitions.length === 0)
+  }
+}
 
 class S3AvroParquetRDDSuite extends SparkFunSuite {
 
@@ -32,12 +104,12 @@ class S3AvroParquetRDDSuite extends SparkFunSuite {
     .awsCredentials(Some("s3"))
 
   sparkTest("Try pulling out a coupla records from a parquet file") {
+
+    val locator = new S3FileLocator(credentials, "genomebridge-variantstore-ci", "demo/reads12.adam/part1")
     val rdd = new S3AvroParquetRDD[ADAMRecord](
       sc,
-      credentials,
       null,
-      "genomebridge-variantstore-ci",
-      "demo/reads12.adam/part1",
+      locator,
       None)
 
     val value = rdd.first()
@@ -54,12 +126,11 @@ class S3AvroParquetRDDSuite extends SparkFunSuite {
 
     val schema = Projection(readName, start, contig)
 
+    val locator = new S3FileLocator(credentials, "genomebridge-variantstore-ci", "demo/reads12.adam/part1")
     val rdd = new S3AvroParquetRDD[ADAMRecord](
       sc,
-      credentials,
       null,
-      "genomebridge-variantstore-ci",
-      "demo/reads12.adam/part1",
+      locator,
       Some(schema))
 
     val value = rdd.first()
@@ -77,12 +148,11 @@ class S3AvroParquetRDDSuite extends SparkFunSuite {
     val schema = Projection(readName, start, sequence)
     val filter = new ReadNameFilter("simread:1:189606653:true")
 
+    val locator = new S3FileLocator(credentials, "genomebridge-variantstore-ci", "demo/reads12.adam/part1")
     val rdd = new S3AvroParquetRDD[ADAMRecord](
       sc,
-      credentials,
       filter,
-      "genomebridge-variantstore-ci",
-      "demo/reads12.adam/part1",
+      locator,
       Some(schema))
 
     val value = rdd.first()

@@ -18,7 +18,6 @@ package org.bdgenomics.adam.parquet_reimpl.index
 import org.bdgenomics.adam.models.ReferenceRegion
 import java.io._
 import scala.io.Source
-import org.bdgenomics.adam.parquet_reimpl.index.RangeIndexEntry
 import scala.Some
 import org.bdgenomics.adam.parquet_reimpl.ByteAccess
 

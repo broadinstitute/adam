@@ -16,20 +16,20 @@
 package org.bdgenomics.adam.parquet_reimpl.filters
 
 import parquet.filter.UnboundRecordFilter
-import org.bdgenomics.adam.parquet_reimpl.index.{IndexEntryPredicate, RowGroupIndexEntry}
+import org.bdgenomics.adam.parquet_reimpl.index.{ IndexEntryPredicate, RowGroupIndexEntry }
 import org.apache.avro.generic.IndexedRecord
 
 trait CombinedFilter[RecordType <: IndexedRecord, IndexEntryType <: RowGroupIndexEntry] {
 
-  def recordFilter : UnboundRecordFilter
-  def predicate : RecordType=>Boolean
-  def indexPredicate : IndexEntryPredicate[IndexEntryType]
+  def recordFilter: UnboundRecordFilter
+  def predicate: RecordType => Boolean
+  def indexPredicate: IndexEntryPredicate[IndexEntryType]
 }
 
-class FilterTuple[R <: IndexedRecord, E <: RowGroupIndexEntry](filter : UnboundRecordFilter,
-                                                                pred : R => Boolean,
-                                                                indexPred : IndexEntryPredicate[E])
-  extends CombinedFilter[R, E] {
+class FilterTuple[R <: IndexedRecord, E <: RowGroupIndexEntry](filter: UnboundRecordFilter,
+                                                               pred: R => Boolean,
+                                                               indexPred: IndexEntryPredicate[E])
+    extends CombinedFilter[R, E] {
 
   override def recordFilter: UnboundRecordFilter = filter
   override def predicate: (R) => Boolean = pred

@@ -33,7 +33,7 @@ class RangeIndexGeneratorSuite extends FunSuite {
 
     entrySeq.head match {
       case RangeIndexEntry(path, index, ranges) => {
-        assert(path === parquetPath)
+        assert(path === "small_adam.fgenotype")
         assert(index === 0)
         assert(ranges.size === 3)
         ranges.head match {
