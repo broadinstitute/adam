@@ -19,13 +19,14 @@ import org.bdgenomics.adam.models.ReferenceRegion
 import java.io._
 import scala.io.Source
 import scala.Some
-import org.bdgenomics.adam.parquet_reimpl.ByteAccess
+import org.bdgenomics.adam.parquet_reimpl.{ FileLocator, ByteAccess }
 
 class RangeIndex(val entries: Iterable[RangeIndexEntry]) extends RowGroupIndex[RangeIndexEntry] {
   def this(itr: Iterator[RangeIndexEntry]) = this(itr.toIterable)
   def this(is: InputStream) = this(Source.fromInputStream(is).getLines().map(RangeIndex.parseRangeIndexEntry))
   def this(file: File) = this(new FileInputStream(file))
   def this(io: ByteAccess) = this(io.readByteStream(0, io.length().toInt))
+  def this(io: FileLocator) = this(io.bytes)
 
   override def findIndexEntries(predicate: IndexEntryPredicate[RangeIndexEntry]): Iterable[RangeIndexEntry] = {
     entries.filter(predicate.accepts)
