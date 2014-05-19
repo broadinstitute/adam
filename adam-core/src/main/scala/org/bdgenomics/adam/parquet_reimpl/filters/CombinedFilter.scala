@@ -19,7 +19,7 @@ import parquet.filter.UnboundRecordFilter
 import org.bdgenomics.adam.parquet_reimpl.index.{ IndexEntryPredicate, RowGroupIndexEntry }
 import org.apache.avro.generic.IndexedRecord
 
-trait CombinedFilter[RecordType <: IndexedRecord, IndexEntryType <: RowGroupIndexEntry] {
+trait CombinedFilter[RecordType <: IndexedRecord, IndexEntryType <: RowGroupIndexEntry] extends Serializable {
 
   def recordFilter: UnboundRecordFilter
   def predicate: RecordType => Boolean
