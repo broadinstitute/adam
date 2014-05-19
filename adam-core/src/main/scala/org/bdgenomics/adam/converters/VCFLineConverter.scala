@@ -108,28 +108,32 @@ class VCFLine(vcfLine: String, val samples: Array[String], sampleIndices: Seq[In
 object VCFLineConverter {
 
   def convert(line: VCFLine): Seq[ADAMFlatGenotype] = {
-    def buildGenotype(i: Int): ADAMFlatGenotype = {
+    def buildGenotype(i: Int): Option[ADAMFlatGenotype] = {
       val sampleFieldMap = line.sampleFields(i)
-      val gts = sampleFieldMap("GT").split("\\||/").map(_.toInt)
-      val genotypes: Seq[CharSequence] = gts.map(line.alleleArray(_))
-      val sampleId = line.samples(i)
+      val gtField = sampleFieldMap("GT")
 
-      val flatGenotype = ADAMFlatGenotype.newBuilder()
-        .setReferenceName(line.referenceName)
-        .setPosition(line.position)
-        .setReferenceAllele(line.ref)
-        .setSampleId(sampleId)
-        .setAlleles(genotypes)
-        .build()
+      if (gtField == "./.") {
+        None
+      } else {
+        val gts = sampleFieldMap("GT").split("\\||/").map(_.toInt)
+        val genotypes: Seq[CharSequence] = gts.map(idx => line.alleleArray(idx))
+        val sampleId = line.samples(i)
 
-      flatGenotype
+        val flatGenotype = ADAMFlatGenotype.newBuilder()
+          .setReferenceName(line.referenceName)
+          .setPosition(line.position)
+          .setReferenceAllele(line.ref)
+          .setSampleId(sampleId)
+          .setAlleles(genotypes)
+          .build()
+
+        Some(flatGenotype)
+      }
     }
 
-    val genotypes =
-      for (i <- 0 until line.samples.length)
-        yield buildGenotype(i)
-
-    genotypes
+    line.samples.zipWithIndex.flatMap {
+      case (sample, i) => buildGenotype(i)
+    }
   }
 
 }
