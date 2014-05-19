@@ -24,13 +24,14 @@ import parquet.column.ColumnReader
 
 import scala.collection.JavaConversions._
 import scala.Some
-import java.io.{ ByteArrayOutputStream, File }
+import java.io.{ ByteArrayInputStream, ByteArrayOutputStream, File }
 import org.bdgenomics.adam.parquet_reimpl.index._
 import org.bdgenomics.adam.parquet_reimpl.filters.FilterTuple
 import scala.Some
 import org.bdgenomics.adam.parquet_reimpl.index.RangeIndexEntry
 import org.bdgenomics.adam.models.ReferenceRegion
 import org.bdgenomics.adam.rich.ReferenceMappingContext._
+import scala.io.Source
 
 class RDDFunSuite extends SparkFunSuite {
 
@@ -47,6 +48,7 @@ class S3AvroIndexedParquetRDDSuite extends RDDFunSuite {
 
   def writeIndexAsBytes(rootLocator: FileLocator, parquets: String*): FileLocator = {
     val rangeIndexGenerator = new RangeIndexGenerator[ADAMFlatGenotype]
+    val debugPrint = false
 
     val entries = parquets.flatMap {
       case parquet: String =>
@@ -58,8 +60,20 @@ class S3AvroIndexedParquetRDDSuite extends RDDFunSuite {
     val byteArrayOutputStream = new ByteArrayOutputStream()
     val indexWriter = new RangeIndexWriter(byteArrayOutputStream)
 
+    if (debugPrint) {
+      println("Writing entries: ")
+      rangeIndex.entries.foreach(entry => println(entry.line))
+    }
+
     rangeIndex.entries.foreach(indexWriter.write)
     indexWriter.close()
+
+    if (debugPrint) {
+      println("Wrote lines: ")
+      val is = new ByteArrayInputStream(byteArrayOutputStream.toByteArray)
+      val lines = Source.fromInputStream(is).getLines()
+      lines.foreach(println)
+    }
 
     new ByteArrayLocator(byteArrayOutputStream.toByteArray)
   }
@@ -95,6 +109,32 @@ class S3AvroIndexedParquetRDDSuite extends RDDFunSuite {
     val indexedRDD = new S3AvroIndexedParquetRDD[ADAMFlatGenotype](sc, filter, indexFileLocator, inputDataRootLocator, None)
 
     assert(indexedRDD.partitions.length === 0)
+  }
+
+  sparkTest("produces 1 partition when the filter only overlaps one partition") {
+
+    val resource = "jc_adam.fgenotype"
+    val inputDataFile = resourceFile(resource)
+    val inputDataRootLocator = new LocalFileLocator(inputDataFile.getParentFile)
+    val indexFileLocator = writeIndexAsBytes(inputDataRootLocator, resource)
+
+    val queryRange = ReferenceRegion("1", 60000, 70000)
+    val rangePredicate = new RangeIndexPredicate(queryRange)
+    val filter = new FilterTuple[ADAMFlatGenotype, RangeIndexEntry](
+      null, null, rangePredicate)
+
+    val rangeIndex = new RangeIndex(indexFileLocator)
+    println("Entries: ")
+    rangeIndex.entries.take(10).foreach(entry => println(entry.line))
+    println("Lines:")
+    Source.fromInputStream(indexFileLocator.bytes.readByteStream(0, indexFileLocator.bytes.length().toInt)).getLines().foreach(println)
+    assert(rangeIndex.findIndexEntries(rangePredicate).toSeq.length === 1)
+
+    val indexedRDD = new S3AvroIndexedParquetRDD[ADAMFlatGenotype](sc, filter, indexFileLocator, inputDataRootLocator, None)
+    assert(indexedRDD.partitions.length === 1)
+
+    val records = indexedRDD.collect()
+    assert(records.length === 390)
   }
 }
 
