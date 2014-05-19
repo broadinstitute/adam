@@ -42,6 +42,7 @@ object ADAMMain extends Logging {
     BuildInformation,
     VcfAnnotation2ADAM,
     Vcf2FlatGenotype,
+    IndexFlatGenotype,
     SummarizeGenotypes,
     BuildInformation)
 
