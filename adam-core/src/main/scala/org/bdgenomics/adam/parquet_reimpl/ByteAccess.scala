@@ -42,7 +42,7 @@ class ByteArrayByteAccess(val bytes: Array[Byte]) extends ByteAccess with Serial
   override def length(): Long = bytes.length
   override def readByteStream(offset: Long, length: Int): InputStream = {
     val is = new ByteArrayInputStream(bytes)
-    is.skip(length)
+    is.skip(offset)
     is
   }
 }
