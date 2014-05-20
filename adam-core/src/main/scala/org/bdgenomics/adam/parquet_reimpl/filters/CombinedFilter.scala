@@ -26,7 +26,9 @@ trait CombinedFilter[RecordType <: IndexedRecord, IndexEntryType <: RowGroupInde
   def indexPredicate: IndexEntryPredicate[IndexEntryType]
 }
 
-class FilterTuple[R <: IndexedRecord, E <: RowGroupIndexEntry](filter: UnboundRecordFilter,
+trait SerializableUnboundRecordFilter extends UnboundRecordFilter with Serializable {}
+
+class FilterTuple[R <: IndexedRecord, E <: RowGroupIndexEntry](filter: SerializableUnboundRecordFilter,
                                                                pred: R => Boolean,
                                                                indexPred: IndexEntryPredicate[E])
     extends CombinedFilter[R, E] {
