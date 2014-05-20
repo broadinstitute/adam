@@ -20,13 +20,13 @@ import org.bdgenomics.adam.util.SparkFunSuite
 import org.bdgenomics.adam.projections.Projection
 import parquet.filter.{ RecordFilter, UnboundRecordFilter }
 import java.lang.Iterable
-import parquet.column.ColumnReader
+import parquet.column.{ ColumnDescriptor, ColumnReader }
 
 import scala.collection.JavaConversions._
 import scala.Some
 import java.io.{ ByteArrayInputStream, ByteArrayOutputStream, File }
 import org.bdgenomics.adam.parquet_reimpl.index._
-import org.bdgenomics.adam.parquet_reimpl.filters.FilterTuple
+import org.bdgenomics.adam.parquet_reimpl.filters.{ SerializableUnboundRecordFilter, FilterTuple }
 import scala.Some
 import org.bdgenomics.adam.parquet_reimpl.index.RangeIndexEntry
 import org.bdgenomics.adam.models.ReferenceRegion
@@ -124,10 +124,6 @@ class S3AvroIndexedParquetRDDSuite extends RDDFunSuite {
       null, null, rangePredicate)
 
     val rangeIndex = new RangeIndex(indexFileLocator)
-    println("Entries: ")
-    rangeIndex.entries.take(10).foreach(entry => println(entry.line))
-    println("Lines:")
-    Source.fromInputStream(indexFileLocator.bytes.readByteStream(0, indexFileLocator.bytes.length().toInt)).getLines().foreach(println)
     assert(rangeIndex.findIndexEntries(rangePredicate).toSeq.length === 1)
 
     val indexedRDD = new S3AvroIndexedParquetRDD[ADAMFlatGenotype](sc, filter, indexFileLocator, inputDataRootLocator, None)
@@ -136,6 +132,51 @@ class S3AvroIndexedParquetRDDSuite extends RDDFunSuite {
     val records = indexedRDD.collect()
     assert(records.length === 390)
   }
+
+  sparkTest("indexing produces the same records as the non-indexed RDD") {
+
+    val resource = "jc_adam.fgenotype"
+    val inputDataFile = resourceFile(resource)
+    val inputDataLocator = new LocalFileLocator(inputDataFile)
+    val inputDataRootLocator = new LocalFileLocator(inputDataFile.getParentFile)
+    val indexFileLocator = writeIndexAsBytes(inputDataRootLocator, resource)
+
+    val queryRange = ReferenceRegion("1", 60000, 70000)
+    val rangePredicate = new RangeIndexPredicate(queryRange)
+    val filter = new FilterTuple[ADAMFlatGenotype, RangeIndexEntry](
+      RDDFunSuite.createRangeFilter(queryRange), null, rangePredicate)
+
+    val rangeIndex = new RangeIndex(indexFileLocator)
+    assert(rangeIndex.findIndexEntries(rangePredicate).toSeq.length === 1)
+
+    val indexedRDD = new S3AvroIndexedParquetRDD[ADAMFlatGenotype](sc, filter, indexFileLocator, inputDataRootLocator, None)
+    assert(indexedRDD.partitions.length === 1)
+
+    val nonIndexedRDD = new S3AvroParquetRDD[ADAMFlatGenotype](sc, filter.recordFilter, inputDataLocator, None)
+    assert(indexedRDD.count() === nonIndexedRDD.count())
+
+  }
+}
+
+object RDDFunSuite {
+
+  def descriptorMatches(name: String)(d: ColumnReader): Boolean = {
+    val path = d.getDescriptor.getPath
+    path(path.length - 1) == name
+  }
+
+  def createRangeFilter(r: ReferenceRegion): SerializableUnboundRecordFilter =
+    new SerializableUnboundRecordFilter() {
+      override def bind(readers: Iterable[ColumnReader]): RecordFilter =
+        new RecordFilter {
+          override def isMatch: Boolean = {
+            readers.find(descriptorMatches("referenceName")).get.getBinary.toStringUsingUTF8 == r.referenceName &&
+              readers.find(descriptorMatches("position")).get.getLong >= r.start &&
+              readers.find(descriptorMatches("position")).get.getLong < r.end
+          }
+        }
+    }
+
 }
 
 class S3AvroParquetRDDSuite extends SparkFunSuite {
