@@ -73,16 +73,6 @@ case class RangeIndexPredicate(queryRange: ReferenceRegion) extends IndexEntryPr
     entry.ranges.exists(_.overlaps(queryRange))
 }
 
-case class AndIndexPredicate[Entry <: RowGroupIndexEntry](indexPredicates: IndexEntryPredicate[Entry]*)
-    extends IndexEntryPredicate[Entry] {
-  override def accepts(entry: Entry): Boolean = indexPredicates.forall(_.accepts(entry))
-}
-
-case class OrIndexPredicate[Entry <: RowGroupIndexEntry](indexPredicates: IndexEntryPredicate[Entry]*)
-    extends IndexEntryPredicate[Entry] {
-  override def accepts(entry: Entry): Boolean = indexPredicates.exists(_.accepts(entry))
-}
-
 case class RangeIndexEntry(path: String, rowGroupIndex: Int, ranges: Seq[ReferenceRegion])
     extends RowGroupIndexEntry(path, rowGroupIndex) {
 

@@ -25,3 +25,23 @@ package org.bdgenomics.adam.parquet_reimpl.index
 trait IndexEntryPredicate[Entry <: RowGroupIndexEntry] extends Serializable {
   def accepts(entry: Entry): Boolean
 }
+
+object IndexEntryPredicate {
+
+  def and[E <: RowGroupIndexEntry](preds : IndexEntryPredicate[E]*) : IndexEntryPredicate[E] =
+    AndIndexPredicate[E](preds : _*)
+
+  def or[E <: RowGroupIndexEntry](preds : IndexEntryPredicate[E]*) : IndexEntryPredicate[E] =
+    OrIndexPredicate[E](preds : _*)
+}
+
+case class AndIndexPredicate[Entry <: RowGroupIndexEntry](indexPredicates: IndexEntryPredicate[Entry]*)
+  extends IndexEntryPredicate[Entry] {
+  override def accepts(entry: Entry): Boolean = indexPredicates.forall(_.accepts(entry))
+}
+
+case class OrIndexPredicate[Entry <: RowGroupIndexEntry](indexPredicates: IndexEntryPredicate[Entry]*)
+  extends IndexEntryPredicate[Entry] {
+  override def accepts(entry: Entry): Boolean = indexPredicates.exists(_.accepts(entry))
+}
+
