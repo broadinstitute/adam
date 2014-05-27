@@ -49,6 +49,10 @@ class ByteArrayByteAccess(val bytes: Array[Byte]) extends ByteAccess with Serial
 
 class InputStreamByteAccess(f: File) extends ByteAccess {
 
+  assert(f.isFile, "\"%s\" isn't a file".format(f.getAbsolutePath))
+  assert(f.exists(), "File \"%s\" doesn't exist".format(f.getAbsolutePath))
+  assert(f.canRead, "File \"%s\" can't be read".format(f.getAbsolutePath))
+
   override def length(): Long = f.length()
 
   override def readByteStream(offset: Long, length: Int): InputStream = {
