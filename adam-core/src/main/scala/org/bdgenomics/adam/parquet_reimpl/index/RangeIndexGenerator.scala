@@ -19,7 +19,7 @@ import java.io._
 import org.bdgenomics.adam.rdd._
 import org.bdgenomics.adam.parquet_reimpl._
 import org.bdgenomics.adam.models.{ ReferenceMapping, ReferenceRegion }
-import parquet.avro.UsableAvroRecordMaterializer
+import parquet.avro.{ AvroSchemaConverter, UsableAvroRecordMaterializer }
 import parquet.schema.MessageType
 import scala.reflect._
 import org.apache.avro.Schema
@@ -29,11 +29,18 @@ import org.bdgenomics.adam.parquet_reimpl.ParquetSchemaType
 import org.bdgenomics.adam.rdd.ParquetRowGroup
 import parquet.io.api.RecordMaterializer
 import org.apache.avro.generic.IndexedRecord
+import org.apache.spark.Logging
 
-class RangeIndexGenerator[T <: IndexedRecord](rangeGapSize: Long = 10000L)(implicit referenceMapping: ReferenceMapping[T], classTag: ClassTag[T]) {
+class RangeIndexGenerator[T <: IndexedRecord](rangeGapSize: Long = 10000L, indexableSchema: Option[Schema] = None)(implicit referenceMapping: ReferenceMapping[T], classTag: ClassTag[T]) extends Logging {
 
   val avroSchema: Schema = classTag.runtimeClass.newInstance().asInstanceOf[T].getSchema
   val filter: UnboundRecordFilter = null
+
+  def convertAvroSchema(schema: Option[Schema], fileMessageType: MessageType): MessageType =
+    schema match {
+      case None    => fileMessageType
+      case Some(s) => new AvroSchemaConverter().convert(s)
+    }
 
   def canCombine(r1: ReferenceRegion, r2: ReferenceRegion): Boolean = {
     r1.referenceName == r2.referenceName && r1.distance(r2).get <= rangeGapSize
@@ -58,21 +65,40 @@ class RangeIndexGenerator[T <: IndexedRecord](rangeGapSize: Long = 10000L)(impli
   def addParquetFile(fullPath: String): Iterator[RangeIndexEntry] = {
     val file = new File(fullPath)
     val rootLocator = new LocalFileLocator(file.getParentFile)
-    addParquetFile(rootLocator, file.getName)
+    val relativePath = file.getName
+    if (file.isFile) {
+      logInfo("Indexing file %s, relative path %s".format(fullPath, relativePath))
+      addParquetFile(rootLocator, relativePath)
+    } else {
+      val childFiles = file.listFiles().filter(f => f.isFile && !f.getName.startsWith("."))
+      childFiles.flatMap {
+        case f => {
+          val childRelativePath = "%s/%s".format(relativePath, f.getName)
+          logInfo("Indexing child file %s, relative path %s".format(f.getName, childRelativePath))
+          addParquetFile(rootLocator, childRelativePath)
+        }
+      }.iterator
+    }
   }
 
   def addParquetFile(rootLocator: FileLocator, relativePath: String): Iterator[RangeIndexEntry] = {
     val locator = rootLocator.relativeLocator(relativePath)
     val io = locator.bytes
     val footer: Footer = ParquetCommon.readFooter(io)
-    val actualSchema: ParquetSchemaType = new ParquetSchemaType(ParquetCommon.parseMessageType(ParquetCommon.readFileMetadata(io)))
-    val reqSchema: ParquetSchemaType = actualSchema
-    val requestedMessageType: MessageType = reqSchema.convertToParquet()
+    val fileMessageType: MessageType = ParquetCommon.parseMessageType(ParquetCommon.readFileMetadata(io))
+    val actualSchema: ParquetSchemaType = new ParquetSchemaType(fileMessageType)
+    val requestedMessageType: MessageType = convertAvroSchema(indexableSchema, fileMessageType)
+    val reqSchema: ParquetSchemaType = new ParquetSchemaType(requestedMessageType)
     val avroRecordMaterializer = new UsableAvroRecordMaterializer[T](requestedMessageType, avroSchema)
 
+    logInfo("# row groups: %d".format(footer.rowGroups.length))
+    logInfo("# total records: %d".format(footer.rowGroups.map(_.rowCount).sum))
+
     footer.rowGroups.zipWithIndex.map {
-      case (rowGroup: ParquetRowGroup, i: Int) =>
+      case (rowGroup: ParquetRowGroup, i: Int) => {
+        logInfo("row group %d, # records %d".format(i, rowGroup.rowCount))
         new RangeIndexEntry(relativePath, i, ranges(rowGroup, io, avroRecordMaterializer, reqSchema, actualSchema))
+      }
     }.iterator
   }
 }

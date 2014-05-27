@@ -23,6 +23,7 @@ import org.bdgenomics.adam.parquet_reimpl.index.{ RangeIndexWriter, RangeIndexGe
 import java.util.logging.Level
 
 import org.bdgenomics.adam.rich.ReferenceMappingContext._
+import org.bdgenomics.adam.projections.{ Projection, ADAMFlatGenotypeField }
 
 object IndexFlatGenotype extends ADAMCommandCompanion {
   val commandName: String = "indexfgenotype"
@@ -44,11 +45,17 @@ class IndexFlatGenotype(args: IndexFlatGenotypeArgs) extends ADAMCommand {
   val companion = IndexFlatGenotype
 
   def run() = {
+
+    import ADAMFlatGenotypeField._
+
     // Quiet parquet...
     ParquetLogger.hadoopLoggerLevel(Level.SEVERE)
 
     val indexWriter: RangeIndexWriter = new RangeIndexWriter(new File(args.indexFile))
-    val generator: RangeIndexGenerator[ADAMFlatGenotype] = new RangeIndexGenerator[ADAMFlatGenotype]()
+
+    val window = 10000L
+    val schema = Projection(referenceName, position, sampleId)
+    val generator: RangeIndexGenerator[ADAMFlatGenotype] = new RangeIndexGenerator[ADAMFlatGenotype](window, Some(schema))
 
     args.listOfParquetFiles.split(",").foreach {
       case parquetFilePath: String =>
