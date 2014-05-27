@@ -21,11 +21,28 @@ import java.io.{ ByteArrayInputStream, File }
 
 trait FileLocator extends Serializable {
 
+  def parentLocator(): Option[FileLocator]
   def relativeLocator(relativePath: String): FileLocator
   def bytes: ByteAccess
 }
 
+object FileLocator {
+
+  val slashDivided = "^(.*)/([^/]+/?)$".r
+
+  def parseSlash(path: String): Option[(String, String)] =
+    slashDivided.findFirstMatchIn(path) match {
+      case None    => None
+      case Some(m) => Some(m.group(1), m.group(2))
+    }
+}
+
 class S3FileLocator(val credentials: AWSCredentials, val bucket: String, val key: String) extends FileLocator {
+
+  override def parentLocator(): Option[FileLocator] = FileLocator.parseSlash(key) match {
+    case Some((parent, child)) => Some(new S3FileLocator(credentials, bucket, parent))
+    case None                  => None
+  }
 
   override def relativeLocator(relativePath: String): FileLocator =
     new S3FileLocator(credentials, bucket, "%s/%s".format(key.stripSuffix("/"), relativePath))
@@ -36,9 +53,15 @@ class S3FileLocator(val credentials: AWSCredentials, val bucket: String, val key
 class LocalFileLocator(val file: File) extends FileLocator {
   override def relativeLocator(relativePath: String): FileLocator = new LocalFileLocator(new File(file, relativePath))
   override def bytes: ByteAccess = new InputStreamByteAccess(file)
+
+  override def parentLocator(): Option[FileLocator] = file.getParentFile match {
+    case null             => None
+    case parentFile: File => Some(new LocalFileLocator(parentFile))
+  }
 }
 
 class ByteArrayLocator(val byteData: Array[Byte]) extends FileLocator {
   override def relativeLocator(relativePath: String): FileLocator = this
+  override def parentLocator(): Option[FileLocator] = None
   override def bytes: ByteAccess = new ByteArrayByteAccess(byteData)
 }
