@@ -58,7 +58,7 @@ class InputStreamByteAccess(f: File) extends ByteAccess {
   override def readByteStream(offset: Long, length: Int): InputStream = {
     val fileIo = new FileInputStream(f)
     fileIo.skip(offset)
-    new BoundedInputStream(fileIo, length.toLong)
+    fileIo
   }
 
 }

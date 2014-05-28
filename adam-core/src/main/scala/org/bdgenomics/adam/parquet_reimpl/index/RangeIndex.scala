@@ -21,8 +21,9 @@ import scala.io.Source
 import scala.Some
 import org.bdgenomics.adam.parquet_reimpl.{ FileLocator, ByteAccess }
 
-class RangeIndex(val entries: Iterable[RangeIndexEntry]) extends RowGroupIndex[RangeIndexEntry] {
-  def this(itr: Iterator[RangeIndexEntry]) = this(itr.toIterable)
+class RangeIndex(val entries: Array[RangeIndexEntry]) extends RowGroupIndex[RangeIndexEntry] {
+  def this(itr: Iterator[RangeIndexEntry]) = this(itr.toArray)
+  def this(itr: Iterable[RangeIndexEntry]) = this(itr.toArray)
   def this(is: InputStream) = this(Source.fromInputStream(is).getLines().map(RangeIndex.parseRangeIndexEntry))
   def this(file: File) = this(new FileInputStream(file))
   def this(io: ByteAccess) = this(io.readByteStream(0, io.length().toInt))
