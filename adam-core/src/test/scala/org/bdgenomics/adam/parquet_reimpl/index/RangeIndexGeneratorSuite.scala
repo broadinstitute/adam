@@ -20,6 +20,8 @@ import org.bdgenomics.adam.rich.ReferenceMappingContext._
 import org.bdgenomics.adam.avro.ADAMFlatGenotype
 import org.bdgenomics.adam.models.ReferenceRegion
 
+import ReferenceFoldingContext._
+
 class RangeIndexGeneratorSuite extends FunSuite {
 
   test("small_adam.fgenotype is indexed into one RangeIndexEntry") {
@@ -40,7 +42,7 @@ class RangeIndexGeneratorSuite extends FunSuite {
           case ReferenceRegion(refName, start, end) => {
             assert(refName === "chr1")
             assert(start === 14397)
-            assert(end === 19190)
+            assert(end === 19191)
           }
         }
       }

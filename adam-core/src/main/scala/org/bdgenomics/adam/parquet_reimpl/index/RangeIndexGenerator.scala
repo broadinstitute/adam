@@ -31,7 +31,8 @@ import parquet.io.api.RecordMaterializer
 import org.apache.avro.generic.IndexedRecord
 import org.apache.spark.Logging
 
-class RangeIndexGenerator[T <: IndexedRecord](rangeGapSize: Long = 10000L, indexableSchema: Option[Schema] = None)(implicit referenceMapping: ReferenceMapping[T], classTag: ClassTag[T]) extends Logging {
+class RangeIndexGenerator[T <: IndexedRecord](indexableSchema: Option[Schema] = None)(implicit referenceFolder: ReferenceFolder[T], classTag: ClassTag[T])
+    extends Logging {
 
   val avroSchema: Schema = classTag.runtimeClass.newInstance().asInstanceOf[T].getSchema
   val filter: UnboundRecordFilter = null
@@ -42,25 +43,15 @@ class RangeIndexGenerator[T <: IndexedRecord](rangeGapSize: Long = 10000L, index
       case Some(s) => new AvroSchemaConverter().convert(s)
     }
 
-  def canCombine(r1: ReferenceRegion, r2: ReferenceRegion): Boolean = {
-    r1.referenceName == r2.referenceName && r1.distance(r2).get <= rangeGapSize
-  }
-
-  def folder(next: ReferenceRegion, acc: Seq[ReferenceRegion]): Seq[ReferenceRegion] = {
-    acc match {
-      case Seq() => Seq(next)
-      case head :: tail =>
-        if (canCombine(head, next)) head.hull(next) :: tail else next :: head :: tail
-    }
-  }
-
   def ranges(rowGroup: ParquetRowGroup,
              io: ByteAccess,
              materializer: RecordMaterializer[T],
              reqSchema: ParquetSchemaType,
-             actualSchema: ParquetSchemaType): Seq[ReferenceRegion] =
-    ParquetPartition.materializeRecords(io, materializer, filter, rowGroup, reqSchema, actualSchema).map(
-      referenceMapping.getReferenceRegion).filter(_ != null).foldRight(Seq[ReferenceRegion]())(folder)
+             actualSchema: ParquetSchemaType): Seq[ReferenceRegion] = {
+
+    ParquetPartition.materializeRecords(io, materializer, filter, rowGroup, reqSchema, actualSchema).
+      foldLeft(Seq[ReferenceRegion]())(referenceFolder.fold)
+  }
 
   def addParquetFile(fullPath: String): Iterator[RangeIndexEntry] = {
     val file = new File(fullPath)

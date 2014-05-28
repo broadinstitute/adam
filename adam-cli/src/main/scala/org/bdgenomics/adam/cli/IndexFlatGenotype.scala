@@ -15,11 +15,11 @@
  */
 package org.bdgenomics.adam.cli
 
-import org.kohsuke.args4j.{ Option, Argument }
+import org.kohsuke.args4j.{ Option => Args4jOption, Argument }
 import org.bdgenomics.adam.util.ParquetLogger
 import java.io.File
 import org.bdgenomics.adam.avro.ADAMFlatGenotype
-import org.bdgenomics.adam.parquet_reimpl.index.{ RangeIndexWriter, RangeIndexGenerator }
+import org.bdgenomics.adam.parquet_reimpl.index.{ ADAMFlatGenotypeReferenceFolder, ReferenceFoldingContext, RangeIndexWriter, RangeIndexGenerator }
 import java.util.logging.Level
 
 import org.bdgenomics.adam.rich.ReferenceMappingContext._
@@ -39,6 +39,9 @@ class IndexFlatGenotypeArgs extends Args4jBase with ParquetArgs {
   var indexFile: String = null
   @Argument(required = true, metaVar = "PARQUET_LIST", usage = "Comma-separated list of parquet file paths", index = 1)
   var listOfParquetFiles: String = null
+
+  @Args4jOption(required = false, name = "-window", usage = "Window size for combining variants")
+  var wSize = 100000
 }
 
 class IndexFlatGenotype(args: IndexFlatGenotypeArgs) extends ADAMCommand {
@@ -48,18 +51,23 @@ class IndexFlatGenotype(args: IndexFlatGenotypeArgs) extends ADAMCommand {
 
     import ADAMFlatGenotypeField._
 
+    implicit val folder = new ADAMFlatGenotypeReferenceFolder(args.wSize)
+
     // Quiet parquet...
     ParquetLogger.hadoopLoggerLevel(Level.SEVERE)
 
     val indexWriter: RangeIndexWriter = new RangeIndexWriter(new File(args.indexFile))
 
-    val window = 10000L
     val schema = Projection(referenceName, position, sampleId)
-    val generator: RangeIndexGenerator[ADAMFlatGenotype] = new RangeIndexGenerator[ADAMFlatGenotype](window, Some(schema))
 
     args.listOfParquetFiles.split(",").foreach {
-      case parquetFilePath: String =>
+      case parquetFilePath: String => {
+        folder.count = 0
+        val generator: RangeIndexGenerator[ADAMFlatGenotype] =
+          new RangeIndexGenerator[ADAMFlatGenotype](Some(schema))
         generator.addParquetFile(parquetFilePath).foreach(indexWriter.write)
+        indexWriter.flush()
+      }
     }
 
     indexWriter.close()

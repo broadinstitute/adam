@@ -43,6 +43,10 @@ class RangeIndexWriter(os: OutputStream) extends RowGroupIndexWriter[RangeIndexE
   override def close(): Unit = {
     printer.close()
   }
+
+  def flush() {
+    printer.flush()
+  }
 }
 
 object RangeIndex {

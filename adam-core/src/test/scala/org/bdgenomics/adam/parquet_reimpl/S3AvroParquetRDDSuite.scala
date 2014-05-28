@@ -33,6 +33,8 @@ import org.bdgenomics.adam.models.ReferenceRegion
 import org.bdgenomics.adam.rich.ReferenceMappingContext._
 import scala.io.Source
 
+import ReferenceFoldingContext._
+
 class RDDFunSuite extends SparkFunSuite {
 
   def resourceFile(resourceName: String): File = {
