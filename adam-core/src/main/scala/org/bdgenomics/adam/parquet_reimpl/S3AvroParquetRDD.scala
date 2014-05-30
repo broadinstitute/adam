@@ -72,7 +72,9 @@ package org.bdgenomics.adam.parquet_reimpl {
     Step 3: build the ParquetPartition values.
      */
       entries.toArray.map {
-        case IDRangeIndexEntry(path, i, sample, range) => parquetFiles(path).partition(i)
+        case IDRangeIndexEntry(path, i, sample, range) => (path, i)
+      }.distinct.map {
+        case (path, i) => parquetFiles(path).partition(i)
       }
     }
 
