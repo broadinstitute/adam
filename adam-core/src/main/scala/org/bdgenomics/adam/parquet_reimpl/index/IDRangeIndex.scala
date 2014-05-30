@@ -71,7 +71,9 @@ object IDRangeIndex {
   }
 }
 
-case class IDRangeIndexPredicate(queryRange: Option[ReferenceRegion], queryIDs: Option[Set[String]]) extends IndexEntryPredicate[IDRangeIndexEntry] {
+case class IDRangeIndexPredicate(queryRange: Option[ReferenceRegion], queryIDs: Option[Set[String]] = None) extends IndexEntryPredicate[IDRangeIndexEntry] {
+  def this(ref: ReferenceRegion) = this(Some(ref), None)
+
   def matchesQueryRange(entry: IDRangeIndexEntry): Boolean =
     queryRange match {
       case Some(range) => range.overlaps(entry.range)

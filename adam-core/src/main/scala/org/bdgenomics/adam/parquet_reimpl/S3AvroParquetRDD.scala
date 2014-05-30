@@ -28,11 +28,11 @@ package org.bdgenomics.adam.parquet_reimpl {
   import org.bdgenomics.adam.parquet_reimpl.index._
   import org.bdgenomics.adam.parquet_reimpl.filters.CombinedFilter
   import parquet.format.FileMetaData
-import org.bdgenomics.adam.parquet_reimpl.index.ParquetFileMetadata
-import scala.Some
-import org.bdgenomics.adam.parquet_reimpl.index.RangeIndexEntry
+  import org.bdgenomics.adam.parquet_reimpl.index.ParquetFileMetadata
+  import scala.Some
+  import org.bdgenomics.adam.parquet_reimpl.index.RangeIndexEntry
 
-class S3AvroIndexedParquetRDD[T <: IndexedRecord: ClassTag](@transient sc: SparkContext,
+  class S3AvroIndexedParquetRDD[T <: IndexedRecord: ClassTag](@transient sc: SparkContext,
                                                               private val filter: CombinedFilter[T, IDRangeIndexEntry],
                                                               private val indexLocator: FileLocator,
                                                               private val dataRootLocator: FileLocator,

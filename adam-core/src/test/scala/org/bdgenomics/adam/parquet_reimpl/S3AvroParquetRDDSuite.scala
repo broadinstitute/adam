@@ -49,7 +49,8 @@ class RDDFunSuite extends SparkFunSuite {
 class S3AvroIndexedParquetRDDSuite extends RDDFunSuite {
 
   def writeIndexAsBytes(rootLocator: FileLocator, parquets: String*): FileLocator = {
-    val rangeIndexGenerator = new RangeIndexGenerator[ADAMFlatGenotype]
+    val rangeIndexGenerator = new IDRangeIndexGenerator[ADAMFlatGenotype](
+      (v: ADAMFlatGenotype) => v.getSampleId.toString)
     val debugPrint = false
 
     val entries = parquets.flatMap {
@@ -57,10 +58,10 @@ class S3AvroIndexedParquetRDDSuite extends RDDFunSuite {
         rangeIndexGenerator.addParquetFile(rootLocator, parquet)
     }
 
-    val rangeIndex = new RangeIndex(entries)
+    val rangeIndex = new IDRangeIndex(entries)
 
     val byteArrayOutputStream = new ByteArrayOutputStream()
-    val indexWriter = new RangeIndexWriter(byteArrayOutputStream)
+    val indexWriter = new IDRangeIndexWriter(byteArrayOutputStream)
 
     if (debugPrint) {
       println("Writing entries: ")
@@ -87,8 +88,8 @@ class S3AvroIndexedParquetRDDSuite extends RDDFunSuite {
     val indexFileLocator = writeIndexAsBytes(inputDataRootLocator, "small_adam.fgenotype")
 
     val queryRange = ReferenceRegion("chr1", 5000, 15000)
-    val filter = new FilterTuple[ADAMFlatGenotype, RangeIndexEntry](null, null,
-      new RangeIndexPredicate(queryRange))
+    val filter = new FilterTuple[ADAMFlatGenotype, IDRangeIndexEntry](null, null,
+      new IDRangeIndexPredicate(queryRange))
     val indexedRDD = new S3AvroIndexedParquetRDD[ADAMFlatGenotype](sc, filter, indexFileLocator, inputDataRootLocator, None)
 
     val fileMetadata = AvroParquetFileMetadata(new LocalFileLocator(inputDataFile), None)
@@ -106,8 +107,8 @@ class S3AvroIndexedParquetRDDSuite extends RDDFunSuite {
 
     // this query Range is on chr10, which should overlap no read groups at all
     val queryRange = ReferenceRegion("chr10", 5000, 15000)
-    val filter = new FilterTuple[ADAMFlatGenotype, RangeIndexEntry](null, null,
-      new RangeIndexPredicate(queryRange))
+    val filter = new FilterTuple[ADAMFlatGenotype, IDRangeIndexEntry](null, null,
+      new IDRangeIndexPredicate(Some(queryRange)))
     val indexedRDD = new S3AvroIndexedParquetRDD[ADAMFlatGenotype](sc, filter, indexFileLocator, inputDataRootLocator, None)
 
     assert(indexedRDD.partitions.length === 0)
@@ -121,11 +122,11 @@ class S3AvroIndexedParquetRDDSuite extends RDDFunSuite {
     val indexFileLocator = writeIndexAsBytes(inputDataRootLocator, resource)
 
     val queryRange = ReferenceRegion("1", 60000, 70000)
-    val rangePredicate = new RangeIndexPredicate(queryRange)
-    val filter = new FilterTuple[ADAMFlatGenotype, RangeIndexEntry](
+    val rangePredicate = new IDRangeIndexPredicate(Some(queryRange), Some(Set[String]("1e54a67a-e285-4764-954f-83f23c049701")))
+    val filter = new FilterTuple[ADAMFlatGenotype, IDRangeIndexEntry](
       null, null, rangePredicate)
 
-    val rangeIndex = new RangeIndex(indexFileLocator)
+    val rangeIndex = new IDRangeIndex(indexFileLocator)
     assert(rangeIndex.findIndexEntries(rangePredicate).toSeq.length === 1)
 
     val indexedRDD = new S3AvroIndexedParquetRDD[ADAMFlatGenotype](sc, filter, indexFileLocator, inputDataRootLocator, None)
@@ -144,11 +145,14 @@ class S3AvroIndexedParquetRDDSuite extends RDDFunSuite {
     val indexFileLocator = writeIndexAsBytes(inputDataRootLocator, resource)
 
     val queryRange = ReferenceRegion("1", 60000, 70000)
-    val rangePredicate = new RangeIndexPredicate(queryRange)
-    val filter = new FilterTuple[ADAMFlatGenotype, RangeIndexEntry](
+    val rangePredicate = new IDRangeIndexPredicate(
+      Some(queryRange),
+      Some(Set[String]("1e54a67a-e285-4764-954f-83f23c049701")))
+
+    val filter = new FilterTuple[ADAMFlatGenotype, IDRangeIndexEntry](
       RDDFunSuite.createRangeFilter(queryRange), null, rangePredicate)
 
-    val rangeIndex = new RangeIndex(indexFileLocator)
+    val rangeIndex = new IDRangeIndex(indexFileLocator)
     assert(rangeIndex.findIndexEntries(rangePredicate).toSeq.length === 1)
 
     val indexedRDD = new S3AvroIndexedParquetRDD[ADAMFlatGenotype](sc, filter, indexFileLocator, inputDataRootLocator, None)
