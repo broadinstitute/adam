@@ -17,7 +17,7 @@ package org.bdgenomics.adam.parquet_reimpl.index
 
 import java.io._
 import scala.io.Source
-import org.bdgenomics.adam.parquet_reimpl.{FileLocator, ByteAccess}
+import org.bdgenomics.adam.parquet_reimpl.{ FileLocator, ByteAccess }
 import scala.Some
 import scala.Some
 import org.bdgenomics.adam.models.ReferenceRegion
@@ -71,23 +71,23 @@ object IDRangeIndex {
   }
 }
 
-case class IDRangeIndexPredicate(queryRange: Option[ReferenceRegion], queryIDs : Option[Set[String]]) extends IndexEntryPredicate[IDRangeIndexEntry] {
-  def matchesQueryRange(entry : IDRangeIndexEntry) : Boolean =
+case class IDRangeIndexPredicate(queryRange: Option[ReferenceRegion], queryIDs: Option[Set[String]]) extends IndexEntryPredicate[IDRangeIndexEntry] {
+  def matchesQueryRange(entry: IDRangeIndexEntry): Boolean =
     queryRange match {
       case Some(range) => range.overlaps(entry.range)
-      case None => true
+      case None        => true
     }
-  def matchesQueryIds(entry : IDRangeIndexEntry) : Boolean =
+  def matchesQueryIds(entry: IDRangeIndexEntry): Boolean =
     queryIDs match {
       case Some(idSet) => idSet.contains(entry.id)
-      case None => true
+      case None        => true
     }
   override def accepts(entry: IDRangeIndexEntry): Boolean =
     matchesQueryRange(entry) && matchesQueryIds(entry)
 }
 
-case class IDRangeIndexEntry(path: String, rowGroupIndex: Int, id : String, range : ReferenceRegion)
-  extends RowGroupIndexEntry(path, rowGroupIndex) {
+case class IDRangeIndexEntry(path: String, rowGroupIndex: Int, id: String, range: ReferenceRegion)
+    extends RowGroupIndexEntry(path, rowGroupIndex) {
 
   def stringifyRange(range: ReferenceRegion): String = "%s:%d-%d".format(range.referenceName, range.start, range.end)
 
