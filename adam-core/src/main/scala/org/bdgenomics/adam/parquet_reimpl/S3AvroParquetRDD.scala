@@ -25,12 +25,15 @@ package org.bdgenomics.adam.parquet_reimpl {
   import scala.reflect._
   import parquet.avro.{ UsableAvroRecordMaterializer, AvroSchemaConverter }
   import parquet.schema.MessageType
-  import org.bdgenomics.adam.parquet_reimpl.index.{ AvroParquetFileMetadata, ParquetFileMetadata, RangeIndex, RangeIndexEntry }
+  import org.bdgenomics.adam.parquet_reimpl.index._
   import org.bdgenomics.adam.parquet_reimpl.filters.CombinedFilter
   import parquet.format.FileMetaData
+import org.bdgenomics.adam.parquet_reimpl.index.ParquetFileMetadata
+import scala.Some
+import org.bdgenomics.adam.parquet_reimpl.index.RangeIndexEntry
 
-  class S3AvroIndexedParquetRDD[T <: IndexedRecord: ClassTag](@transient sc: SparkContext,
-                                                              private val filter: CombinedFilter[T, RangeIndexEntry],
+class S3AvroIndexedParquetRDD[T <: IndexedRecord: ClassTag](@transient sc: SparkContext,
+                                                              private val filter: CombinedFilter[T, IDRangeIndexEntry],
                                                               private val indexLocator: FileLocator,
                                                               private val dataRootLocator: FileLocator,
                                                               @transient private val requestedSchema: Option[Schema])
@@ -38,7 +41,7 @@ package org.bdgenomics.adam.parquet_reimpl {
       extends RDD[T](sc, Nil) {
 
     override protected def getPartitions: Array[Partition] = {
-      val index: RangeIndex = new RangeIndex(indexLocator.bytes)
+      val index: IDRangeIndex = new IDRangeIndex(indexLocator.bytes)
 
       /**
        * There are three steps here:
@@ -53,7 +56,7 @@ package org.bdgenomics.adam.parquet_reimpl {
       /*
     Step 1: find the relevant index entries
      */
-      val entries: Iterable[RangeIndexEntry] = index.findIndexEntries(filter.indexPredicate)
+      val entries: Iterable[IDRangeIndexEntry] = index.findIndexEntries(filter.indexPredicate)
 
       /*
     Step 2: get the parquet file metadata.
@@ -69,7 +72,7 @@ package org.bdgenomics.adam.parquet_reimpl {
     Step 3: build the ParquetPartition values.
      */
       entries.toArray.map {
-        case RangeIndexEntry(path, i, ranges) => parquetFiles(path).partition(i)
+        case IDRangeIndexEntry(path, i, sample, range) => parquetFiles(path).partition(i)
       }
     }
 
