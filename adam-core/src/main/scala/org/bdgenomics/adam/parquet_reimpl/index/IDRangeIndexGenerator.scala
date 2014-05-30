@@ -33,10 +33,9 @@ import org.apache.spark.Logging
 
 import scala.collection.mutable
 
-class IDRangeIndexGenerator[T <: IndexedRecord](idAccessor : T=>String,
-                                                indexableSchema: Option[Schema] = None)
-                                               (implicit referenceFolder: ReferenceFolder[T],
-                                                classTag: ClassTag[T])
+class IDRangeIndexGenerator[T <: IndexedRecord](idAccessor: T => String,
+                                                indexableSchema: Option[Schema] = None)(implicit referenceFolder: ReferenceFolder[T],
+                                                                                        classTag: ClassTag[T])
     extends Logging {
 
   val avroSchema: Schema = classTag.runtimeClass.newInstance().asInstanceOf[T].getSchema
@@ -54,11 +53,11 @@ class IDRangeIndexGenerator[T <: IndexedRecord](idAccessor : T=>String,
 
   class IDAndRangeSet {
 
-    val idSet : mutable.HashSet[String] = mutable.HashSet()
-    var rangeSet : Seq[ReferenceRegion] = Seq()
+    val idSet: mutable.HashSet[String] = mutable.HashSet()
+    var rangeSet: Seq[ReferenceRegion] = Seq()
   }
 
-  def folder(folded : IDAndRangeSet, value : T) : IDAndRangeSet = {
+  def folder(folded: IDAndRangeSet, value: T): IDAndRangeSet = {
     folded.rangeSet = referenceFolder.fold(folded.rangeSet, value)
     folded.idSet.add(idAccessor(value))
 
@@ -66,10 +65,10 @@ class IDRangeIndexGenerator[T <: IndexedRecord](idAccessor : T=>String,
   }
 
   def idRanges(rowGroup: ParquetRowGroup,
-             io: ByteAccess,
-             materializer: RecordMaterializer[T],
-             reqSchema: ParquetSchemaType,
-             actualSchema: ParquetSchemaType): (Seq[String],Seq[ReferenceRegion]) = {
+               io: ByteAccess,
+               materializer: RecordMaterializer[T],
+               reqSchema: ParquetSchemaType,
+               actualSchema: ParquetSchemaType): (Seq[String], Seq[ReferenceRegion]) = {
 
     val idAndRangeSet =
       ParquetPartition.materializeRecords(io, materializer, filter, rowGroup, reqSchema, actualSchema).

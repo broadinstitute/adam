@@ -19,11 +19,12 @@ import org.kohsuke.args4j.{ Option => Args4jOption, Argument }
 import org.bdgenomics.adam.util.ParquetLogger
 import java.io.File
 import org.bdgenomics.adam.avro.ADAMFlatGenotype
-import org.bdgenomics.adam.parquet_reimpl.index.{ ADAMFlatGenotypeReferenceFolder, ReferenceFoldingContext, RangeIndexWriter, RangeIndexGenerator }
+import org.bdgenomics.adam.parquet_reimpl.index._
 import java.util.logging.Level
 
 import org.bdgenomics.adam.rich.ReferenceMappingContext._
 import org.bdgenomics.adam.projections.{ Projection, ADAMFlatGenotypeField }
+import scala.Some
 
 object IndexFlatGenotype extends ADAMCommandCompanion {
   val commandName: String = "indexfgenotype"
@@ -56,15 +57,17 @@ class IndexFlatGenotype(args: IndexFlatGenotypeArgs) extends ADAMCommand {
     // Quiet parquet...
     ParquetLogger.hadoopLoggerLevel(Level.SEVERE)
 
-    val indexWriter: RangeIndexWriter = new RangeIndexWriter(new File(args.indexFile))
+    val indexWriter: IDRangeIndexWriter = new IDRangeIndexWriter(new File(args.indexFile))
 
     val schema = Projection(referenceName, position, sampleId)
 
     args.listOfParquetFiles.split(",").foreach {
       case parquetFilePath: String => {
         folder.count = 0
-        val generator: RangeIndexGenerator[ADAMFlatGenotype] =
-          new RangeIndexGenerator[ADAMFlatGenotype](Some(schema))
+        val generator: IDRangeIndexGenerator[ADAMFlatGenotype] =
+          new IDRangeIndexGenerator[ADAMFlatGenotype](
+            (v: ADAMFlatGenotype) => v.getSampleId.toString,
+            Some(schema))
         generator.addParquetFile(parquetFilePath).foreach(indexWriter.write)
         indexWriter.flush()
       }
