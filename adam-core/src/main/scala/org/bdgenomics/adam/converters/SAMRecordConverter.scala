@@ -17,7 +17,7 @@
  */
 package org.bdgenomics.adam.converters
 
-import net.sf.samtools.{SAMSequenceRecord, SAMFileHeader, SAMReadGroupRecord, SAMRecord}
+import net.sf.samtools.{ SAMSequenceRecord, SAMFileHeader, SAMReadGroupRecord, SAMRecord }
 
 import org.bdgenomics.formats.avro.ADAMRecord
 import scala.collection.JavaConverters._
@@ -28,7 +28,7 @@ import scala.collection.JavaConverters._
 
 class SAMRecordConverter extends Serializable {
 
-  def unconvert(adam : ADAMRecord, fileHeader : SAMFileHeader) : SAMRecord = {
+  def unconvert(adam: ADAMRecord, fileHeader: SAMFileHeader): SAMRecord = {
 
     import edu.berkeley.cs.amplab.adam.rich.RichADAMRecord._
 
@@ -41,7 +41,7 @@ class SAMRecordConverter extends Serializable {
     record.setReadString(adam.getSequence.toString)
     record.setBaseQualityString(adam.getQual.toString)
 
-    if(adam.getReferenceId == null) {
+    if (adam.getReferenceId == null) {
       record.setReferenceIndex(SAMRecord.NO_ALIGNMENT_REFERENCE_INDEX)
       record.setReferenceName(SAMRecord.NO_ALIGNMENT_REFERENCE_NAME)
       record.setAlignmentStart(SAMRecord.NO_ALIGNMENT_START)
@@ -57,14 +57,14 @@ class SAMRecordConverter extends Serializable {
       record.setReadNegativeStrandFlag(adam.getReadNegativeStrand)
       record.setCigarString(adam.getCigar.toString)
 
-      if(adam.getMapq != null) {
+      if (adam.getMapq != null) {
         record.setMappingQuality(adam.getMapq)
       } else {
         record.setMappingQuality(SAMRecord.UNKNOWN_MAPPING_QUALITY)
       }
     }
 
-    if(adam.getReadPaired) {
+    if (adam.getReadPaired) {
       val samSequenceRecord = fileHeader.getSequence(adam.getMateReference.toString)
 
       record.setMateReferenceIndex(samSequenceRecord.getSequenceIndex)
@@ -87,15 +87,15 @@ class SAMRecordConverter extends Serializable {
      */
 
     // Set MD tag
-    if(adam.getMismatchingPositions != null) {
+    if (adam.getMismatchingPositions != null) {
       record.setAttribute("MD", adam.getMismatchingPositions.toString)
     }
     // Set RG tag
-    if(adam.getRecordGroupId != null) {
+    if (adam.getRecordGroupId != null) {
       record.setAttribute("RG", adam.getRecordGroupId.toString)
     }
     // Set the rest of the tags.
-    for( attr <- adam.tags ) {
+    for (attr <- adam.tags) {
       record.setAttribute(attr.name, attr.value)
     }
 

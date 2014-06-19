@@ -23,9 +23,9 @@ import org.apache.spark.SparkContext._
 import org.apache.hadoop.mapreduce.Job
 import java.util.logging.Level
 import edu.berkeley.cs.amplab.adam.avro.ADAMRecord
-import edu.berkeley.cs.amplab.adam.models.{SequenceDictionary, ReferencePosition, SequenceRecord}
+import edu.berkeley.cs.amplab.adam.models.{ SequenceDictionary, ReferencePosition, SequenceRecord }
 import org.apache.spark.rdd.RDD
-import net.sf.samtools.{SAMFileReader, SAMFileHeader, SAMFileWriter, BAMFileWriter}
+import net.sf.samtools.{ SAMFileReader, SAMFileHeader, SAMFileWriter, BAMFileWriter }
 import java.io.File
 import edu.berkeley.cs.amplab.adam.rdd.GenomicRegionPartitioner
 import edu.berkeley.cs.amplab.adam.converters.SAMRecordConverter
@@ -62,18 +62,18 @@ class ExportArgs extends Args4jBase with SparkArgs with ParquetArgs {
  */
 object BAMCombiner {
 
-  def combineBAMs(header : SAMFileHeader, outputPath : String, filenames : Iterable[String]) {
+  def combineBAMs(header: SAMFileHeader, outputPath: String, filenames: Iterable[String]) {
 
     // TODO again, probably need to create a Path and an outputStream here...
     val writer = new BAMFileWriter(new File("%s.bam".format(outputPath)))
     writer.setSortOrder(SAMFileHeader.SortOrder.coordinate, true)
     writer.setHeader(header)
 
-    for( partFilename <- filenames ) {
+    for (partFilename <- filenames) {
       val reader = new SAMFileReader(new File(partFilename))
 
       val itr = reader.iterator()
-      for( samRecord <- itr ) {
+      for (samRecord <- itr) {
         writer.addAlignment(samRecord)
       }
 
@@ -96,14 +96,13 @@ class Export(protected val args: ExportArgs) extends AdamSparkCommand[ExportArgs
     // Quiet parquet logging...
     ParquetLogger.hadoopLoggerLevel(Level.SEVERE)
 
-
     /**
      * BAM Export
      */
 
     // first, we need the dictionary to both build the SAMFileHeader as well
     // as create the genomic region partitioner
-    val dict : SequenceDictionary = sc.adamDictionaryLoad(args.inputPath)
+    val dict: SequenceDictionary = sc.adamDictionaryLoad(args.inputPath)
     val partitioner = new GenomicRegionPartitioner(args.parts, dict)
 
     // Next, we create a serializable version of the header that can be passed
@@ -116,7 +115,7 @@ class Export(protected val args: ExportArgs) extends AdamSparkCommand[ExportArgs
     val header = sc.prepareSAMFileHeader(args.inputPath)
     // TODO fill in the header here
 
-    val reads : RDD[ADAMRecord] = sc.adamLoad(args.inputPath)
+    val reads: RDD[ADAMRecord] = sc.adamLoad(args.inputPath)
 
     // Sort the reads and key them by position -- this is critical, because we're going
     // to generate a separate BAM for each partition.  Open question: is it fast to
@@ -138,44 +137,45 @@ class Export(protected val args: ExportArgs) extends AdamSparkCommand[ExportArgs
     // order, so that we don't have to write a generalized merge sort to combine
     // the BAMs.
     val filenames = sorted.mapPartitions {
-      itr : Iterator[(ReferencePosition,ADAMRecord)] => {
+      itr: Iterator[(ReferencePosition, ADAMRecord)] =>
+        {
 
-        var filename : String = null
-        var writer : BAMFileWriter = null
+          var filename: String = null
+          var writer: BAMFileWriter = null
 
-        // TODO Kinda wish SAMRecordConverter was an object instead of a class.
-        val sam = new SAMRecordConverter()
+          // TODO Kinda wish SAMRecordConverter was an object instead of a class.
+          val sam = new SAMRecordConverter()
 
-        for( (pos, rec) <- itr ) {
-          // TODO see note above -- probably want to check that we're still in coordinate-sorted order here.
+          for ((pos, rec) <- itr) {
+            // TODO see note above -- probably want to check that we're still in coordinate-sorted order here.
 
-          if(writer == null) {
+            if (writer == null) {
 
-            // we don't know "where" each partition *is* in the genome, until we
-            // see the first read, and we need that partition location to generate
-            // the filename and (ultimately) the BAMFileWriter for that filename.
-            // Therefore, we can't initialize the writer until we see the first
-            // read...
-            filename = "%s_%d_%d.bam".format(args.outputPath, rec.getReferenceId.toInt, rec.getStart.toInt)
-            val path = new Path(filename)
+              // we don't know "where" each partition *is* in the genome, until we
+              // see the first read, and we need that partition location to generate
+              // the filename and (ultimately) the BAMFileWriter for that filename.
+              // Therefore, we can't initialize the writer until we see the first
+              // read...
+              filename = "%s_%d_%d.bam".format(args.outputPath, rec.getReferenceId.toInt, rec.getStart.toInt)
+              val path = new Path(filename)
 
-            // TODO create this out of a file outputstream, rather than directly to local disk.
-            writer = new BAMFileWriter(new File(filename))
-            writer.setSortOrder(SAMFileHeader.SortOrder.coordinate, true)
-            writer.setHeader(header)
+              // TODO create this out of a file outputstream, rather than directly to local disk.
+              writer = new BAMFileWriter(new File(filename))
+              writer.setSortOrder(SAMFileHeader.SortOrder.coordinate, true)
+              writer.setHeader(header)
+            }
+
+            writer.addAlignment(sam.unconvert(rec, header))
           }
 
-          writer.addAlignment(sam.unconvert(rec, header))
-        }
+          if (writer != null) {
+            writer.close()
+            Seq(filename).iterator
 
-        if(writer != null) {
-          writer.close()
-          Seq(filename).iterator
-
-        } else {
-          Seq().iterator
+          } else {
+            Seq().iterator
+          }
         }
-      }
     }
 
     BAMCombiner.combineBAMs(header, args.outputPath, filenames.collect().sorted)

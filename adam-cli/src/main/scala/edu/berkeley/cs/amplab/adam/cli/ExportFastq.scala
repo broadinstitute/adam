@@ -21,13 +21,13 @@ import org.apache.spark.SparkContext._
 import org.apache.hadoop.mapreduce.Job
 import java.util.logging.Level
 
-import edu.berkeley.cs.amplab.adam.projections.{Projection,ADAMRecordField}
+import edu.berkeley.cs.amplab.adam.projections.{ Projection, ADAMRecordField }
 import edu.berkeley.cs.amplab.adam.rdd.AdamContext._
 import edu.berkeley.cs.amplab.adam.util.ParquetLogger
 import edu.berkeley.cs.amplab.adam.avro.ADAMRecord
 import org.apache.spark.rdd.RDD
 import java.io._
-import net.sf.picard.fastq.{BasicFastqWriter, FastqWriter, FastqRecord}
+import net.sf.picard.fastq.{ BasicFastqWriter, FastqWriter, FastqRecord }
 import java.util.zip.GZIPOutputStream
 
 // TODO: should permute the ordering of the reads.
@@ -42,13 +42,13 @@ object ExportFastq extends AdamCommandCompanion with Serializable {
     new ExportFastq(Args4j[ExportFastqArgs](cmdLine))
   }
 
-  def createGzipFastqWriter(fileFormat : String, partitionIdx : Int) : FastqWriter = {
+  def createGzipFastqWriter(fileFormat: String, partitionIdx: Int): FastqWriter = {
     val file = new File(fileFormat.format(partitionIdx))
-    val ps : PrintStream = new PrintStream(new GZIPOutputStream(new FileOutputStream(file)))
+    val ps: PrintStream = new PrintStream(new GZIPOutputStream(new FileOutputStream(file)))
     new SerializableFastqWriter(ps)
   }
 
-  def fastqRecord(rec : ADAMRecord) : FastqRecord = {
+  def fastqRecord(rec: ADAMRecord): FastqRecord = {
     new FastqRecord(rec.getReadName, rec.getSequence, "", rec.getQual)
   }
 }
@@ -77,10 +77,9 @@ class ExportFastq(protected val args: ExportFastqArgs) extends AdamSparkCommand[
       ADAMRecordField.primaryAlignment,
       ADAMRecordField.recordGroupSample,
       ADAMRecordField.recordGroupLibrary,
-      ADAMRecordField.recordGroupId
-    )
+      ADAMRecordField.recordGroupId)
 
-    def printSingleRecords(fileFormat : String)(idx : Int, itr : Iterator[FastqRecord]) : Iterator[Int] = {
+    def printSingleRecords(fileFormat: String)(idx: Int, itr: Iterator[FastqRecord]): Iterator[Int] = {
       var written = 0
       val writer = ExportFastq.createGzipFastqWriter(fileFormat, idx)
       itr.foreach {
@@ -92,7 +91,7 @@ class ExportFastq(protected val args: ExportFastqArgs) extends AdamSparkCommand[
       List(written).iterator
     }
 
-    def printPairedRecords(file1Format : String, file2Format : String)(idx : Int, itr : Iterator[(String,(ADAMRecord,ADAMRecord))]) : Iterator[Int] = {
+    def printPairedRecords(file1Format: String, file2Format: String)(idx: Int, itr: Iterator[(String, (ADAMRecord, ADAMRecord))]): Iterator[Int] = {
       var written = 0
 
       val w1 = ExportFastq.createGzipFastqWriter(file1Format, idx)
@@ -113,16 +112,16 @@ class ExportFastq(protected val args: ExportFastqArgs) extends AdamSparkCommand[
       List(written).iterator
     }
 
-    val reads : RDD[ADAMRecord] = sc.adamLoad(args.inputPath, projection=Some(proj))
+    val reads: RDD[ADAMRecord] = sc.adamLoad(args.inputPath, projection = Some(proj))
 
     /*
      * First, output all the non-paired reads.
      */
     val singles = reads.filter(rec => !rec.getReadPaired && rec.getPrimaryAlignment)
 
-    if(singles.count() > 0) {
+    if (singles.count() > 0) {
       val written = singles.map(ExportFastq.fastqRecord).mapPartitionsWithIndex(printSingleRecords(singlesFile))
-        .reduce(_+_)
+        .reduce(_ + _)
       println("%d reads written".format(written))
     }
 
@@ -130,11 +129,11 @@ class ExportFastq(protected val args: ExportFastqArgs) extends AdamSparkCommand[
      * Next, output the paired reads.
      */
     val paired = reads.filter(rec => rec.getReadPaired && rec.getPrimaryAlignment)
-    val pairedFirst : RDD[(String,ADAMRecord)] = paired.filter(_.getFirstOfPair).keyBy(_.getReadName)
-    val pairedSecond : RDD[(String,ADAMRecord)] = paired.filter(!_.getFirstOfPair).keyBy(_.getReadName)
+    val pairedFirst: RDD[(String, ADAMRecord)] = paired.filter(_.getFirstOfPair).keyBy(_.getReadName)
+    val pairedSecond: RDD[(String, ADAMRecord)] = paired.filter(!_.getFirstOfPair).keyBy(_.getReadName)
 
-    if(pairedFirst.count() > 0) {
-      val joined : RDD[(String,(ADAMRecord,ADAMRecord))] = pairedFirst.join(pairedSecond).sortByKey()
+    if (pairedFirst.count() > 0) {
+      val joined: RDD[(String, (ADAMRecord, ADAMRecord))] = pairedFirst.join(pairedSecond).sortByKey()
       val written = joined.mapPartitionsWithIndex(printPairedRecords(pairs1File, pairs2File)).reduce(_ + _)
       println("%d read-pairs written".format(written))
     }
@@ -142,5 +141,5 @@ class ExportFastq(protected val args: ExportFastqArgs) extends AdamSparkCommand[
 
 }
 
-class SerializableFastqWriter(ps : PrintStream) extends BasicFastqWriter(ps) with Serializable {
+class SerializableFastqWriter(ps: PrintStream) extends BasicFastqWriter(ps) with Serializable {
 }
