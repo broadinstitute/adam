@@ -18,8 +18,9 @@
 package org.bdgenomics.adam.util
 
 import com.amazonaws.auth.AWSCredentials
-import com.amazonaws.services.s3.AmazonS3Client
-import java.io.File
+import com.amazonaws.services.s3.model.ObjectMetadata
+import com.amazonaws.services.s3.{AmazonS3, AmazonS3Client}
+import java.io._
 
 /**
  * FileLocator is a trait which is meant to combine aspects of
@@ -38,10 +39,14 @@ import java.io.File
  * classpath as part of tests.
  */
 trait FileLocator extends Serializable {
+  def isWritable: Boolean
+  def isReadable: Boolean
+  def exists: Boolean
 
   def parentLocator(): Option[FileLocator]
   def relativeLocator(relativePath: String): FileLocator
   def bytes: ByteAccess
+  def writer(in: ByteAccess)
 }
 
 object FileLocator {
@@ -56,6 +61,7 @@ object FileLocator {
 }
 
 class S3FileLocator(val credentials: AWSCredentials, val bucket: String, val key: String) extends FileLocator {
+  @transient lazy val client: AmazonS3 = new AmazonS3Client(credentials)
 
   override def parentLocator(): Option[FileLocator] = FileLocator.parseSlash(key) match {
     case Some((parent, child)) => Some(new S3FileLocator(credentials, bucket, parent))
@@ -65,7 +71,23 @@ class S3FileLocator(val credentials: AWSCredentials, val bucket: String, val key
   override def relativeLocator(relativePath: String): FileLocator =
     new S3FileLocator(credentials, bucket, "%s/%s".format(key.stripSuffix("/"), relativePath))
 
-  override def bytes: ByteAccess = new S3ByteAccess(new AmazonS3Client(credentials), bucket, key)
+  override def bytes: ByteAccess = new S3ByteAccess(client, bucket, key)
+
+  override def isWritable: Boolean = true
+
+  override def isReadable: Boolean = exists
+
+  override def writer(in: ByteAccess) {
+    val length = in.length().toInt
+    val om = new ObjectMetadata()
+    om.setContentLength(length)
+    client.putObject(bucket, key, in.readByteStream(0, length), om)
+  }
+
+  override def exists: Boolean = client.getObjectMetadata(bucket, key) match {
+    case null => false
+    case x => x.getContentLength != 0
+  }
 }
 
 class LocalFileLocator(val file: File) extends FileLocator {
@@ -84,10 +106,31 @@ class LocalFileLocator(val file: File) extends FileLocator {
       case _                     => false
     }
   }
+
+  override def isWritable: Boolean = file.canWrite
+
+  override def isReadable: Boolean = file.canRead
+
+  override def writer(in: ByteAccess): Unit = {
+    val fileOutputWriter = new FileOutputStream(file)
+    val bytes = in.readFully(0, in.length().toInt)
+    fileOutputWriter.write(bytes)
+    fileOutputWriter.close()
+  }
+
+  override def exists: Boolean = file.exists()
 }
 
 class ByteArrayLocator(val byteData: Array[Byte]) extends FileLocator {
   override def relativeLocator(relativePath: String): FileLocator = this
   override def parentLocator(): Option[FileLocator] = None
   override def bytes: ByteAccess = new ByteArrayByteAccess(byteData)
+
+  override def isWritable: Boolean = false
+
+  override def isReadable: Boolean = true
+
+  override def writer(in: ByteAccess): Unit = ???
+
+  override def exists: Boolean = true
 }
