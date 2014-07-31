@@ -63,7 +63,7 @@ class ByteAccessSuite extends FunSuite {
   }
 
   test("HTTPRangedByteAccess supports range queries", NetworkConnected) {
-    val uri = URI.create("http://www.cs.berkeley.edu/~massie/bams/mouse_chrM.bam")
+    val uri = URI.create("https://s3.amazonaws.com/bdgenomics-test/mouse_chrM.bam")
     val http = new HTTPRangedByteAccess(uri, 1)
     val bytes1 = http.readFully(100, 10)
     val bytes2 = http.readFully(100, 100)
@@ -78,7 +78,7 @@ class ByteAccessSuite extends FunSuite {
   }
 
   test("HTTPRangedByteAccess can retrieve a full range", NetworkConnected) {
-    val uri = URI.create("http://www.eecs.berkeley.edu/Includes/EECS-images/eecslogo.gif")
+    val uri = URI.create("https://s3.amazonaws.com/bdgenomics-test/eecslogo.gif")
     val http = new HTTPRangedByteAccess(uri, 1)
     val bytes = http.readFully(0, http.length().toInt)
     assert(bytes.length === http.length())
